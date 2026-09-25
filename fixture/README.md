@@ -1,13 +1,13 @@
-# vibeguard fixture — deliberately insecure demo
+# keysnag fixture — deliberately insecure demo
 
-**This project is intentionally broken. It exists only so vibeguard's own
+**This project is intentionally broken. It exists only so keysnag's own
 tests can prove every check fires. It must never be deployed, never given
 real credentials, and never used as a starting point for a real app.**
 
 Every secret in this folder is fake and real-shaped (correct format, no live
 value). Every schema flaw and every route is a known, seeded vulnerability.
 
-## Seeded flaw -> expected vibeguard check
+## Seeded flaw -> expected keysnag check
 
 | Flaw | Where | Expected check |
 |---|---|---|

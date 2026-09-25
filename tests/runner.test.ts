@@ -25,7 +25,7 @@ test("a check whose requires field is absent from context is skipped, naming the
   const results = await runChecks(makeCtx(), [check]);
   assert.equal(results.length, 1);
   assert.equal(results[0].ran, false);
-  assert.match(results[0].skippedReason ?? "", /VG_PG_URL/);
+  assert.match(results[0].skippedReason ?? "", /KEYSNAG_PG_URL/);
   assert.deepEqual(results[0].findings, []);
 });
 

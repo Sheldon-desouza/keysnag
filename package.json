@@ -1,11 +1,11 @@
 {
-  "name": "vibeguard",
+  "name": "keysnag",
   "version": "0.0.0",
   "private": true,
   "description": "Local security checks for AI-built Next.js + Supabase apps. Runs in your terminal, Claude Code, or any MCP client. Nothing leaves your machine.",
   "type": "module",
   "bin": {
-    "vibeguard": "dist/cli.js"
+    "keysnag": "dist/cli.js"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

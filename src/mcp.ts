@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// vibeguard MCP stdio server. Exposes `run_security_check` (the full report) plus one
+// keysnag MCP stdio server. Exposes `run_security_check` (the full report) plus one
 // `check_<name>` tool per registered check, for a coding agent to call individually.
 import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -10,7 +10,7 @@ import { renderMarkdown } from "./report.js";
 import { checks } from "./checks/index.js";
 
 const server = new McpServer({
-  name: "vibeguard",
+  name: "keysnag",
   version: "0.0.0",
 });
 
@@ -18,7 +18,7 @@ server.registerTool(
   "run_security_check",
   {
     description:
-      "Run vibeguard's local security checks (secrets, url probe, RLS audit, cross-account access) and return the markdown report. Nothing leaves the machine except requests to the site/database URLs you provide.",
+      "Run keysnag's local security checks (secrets, url probe, RLS audit, cross-account access) and return the markdown report. Nothing leaves the machine except requests to the site/database URLs you provide.",
     inputSchema: {
       repoDir: z
         .string()

@@ -3,13 +3,13 @@
 import type { Check, CheckContext, CheckResult, Finding } from "./types.js";
 
 const ENV_VAR_BY_FIELD: Record<string, string> = {
-  repoDir: "VG_REPO_DIR",
-  siteUrl: "VG_SITE_URL",
-  supabaseUrl: "VG_SUPABASE_URL",
-  supabaseAnonKey: "VG_SUPABASE_ANON_KEY",
-  pgUrl: "VG_PG_URL",
-  tokenA: "VG_TOKEN_A",
-  tokenB: "VG_TOKEN_B",
+  repoDir: "KEYSNAG_REPO_DIR",
+  siteUrl: "KEYSNAG_SITE_URL",
+  supabaseUrl: "KEYSNAG_SUPABASE_URL",
+  supabaseAnonKey: "KEYSNAG_SUPABASE_ANON_KEY",
+  pgUrl: "KEYSNAG_PG_URL",
+  tokenA: "KEYSNAG_TOKEN_A",
+  tokenB: "KEYSNAG_TOKEN_B",
 };
 
 function missingFields(check: Check, ctx: CheckContext): (keyof CheckContext)[] {
@@ -49,7 +49,7 @@ export async function runChecks(
         severity: "info",
         title: `${check.name} check failed to run`,
         detail: `The check threw an unexpected error and was aborted: ${message}`,
-        fix: "This is a vibeguard bug or an unexpected environment issue, not a finding about your app. Re-run with more context, or report it.",
+        fix: "This is a keysnag bug or an unexpected environment issue, not a finding about your app. Re-run with more context, or report it.",
       };
       results.push({
         check: check.name,

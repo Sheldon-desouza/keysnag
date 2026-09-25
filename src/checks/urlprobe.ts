@@ -4,7 +4,7 @@
 import type { Check, CheckContext, CheckResult, Finding } from "../types.js";
 
 const TIMEOUT_MS = 10_000;
-const USER_AGENT = "vibeguard-scan";
+const USER_AGENT = "keysnag-scan";
 
 function fetchOpts(): RequestInit {
   return {

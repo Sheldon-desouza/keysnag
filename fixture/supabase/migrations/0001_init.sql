@@ -1,5 +1,5 @@
 -- INTENTIONALLY INSECURE FIXTURE — never real
--- Documents the intended-broken schema for vibeguard's `rls` check to parse.
+-- Documents the intended-broken schema for keysnag's `rls` check to parse.
 -- This SQL is never run against a live database as part of the fixture.
 
 create table profiles (

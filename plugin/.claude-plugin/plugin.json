@@ -1,5 +1,5 @@
 {
-  "name": "vibeguard",
+  "name": "keysnag",
   "version": "0.0.0",
   "description": "Local security checks for AI-built Next.js + Supabase apps: leaked secrets, an exposed URL probe, an RLS audit, and a cross-account access test. Runs in your terminal, Claude Code, or any MCP client. Nothing leaves your machine.",
   "author": {

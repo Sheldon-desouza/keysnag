@@ -54,8 +54,8 @@ const check: Check = {
             check: check.name,
             severity: "info",
             title: "could not connect for RLS audit",
-            detail: `vibeguard could not connect to the database with the supplied pgUrl, so the RLS audit did not run. Error: ${message}`,
-            fix: "Check that VG_PG_URL is correct, the read-only role exists, and the database allows connections from this machine.",
+            detail: `keysnag could not connect to the database with the supplied pgUrl, so the RLS audit did not run. Error: ${message}`,
+            fix: "Check that KEYSNAG_PG_URL is correct, the read-only role exists, and the database allows connections from this machine.",
           },
         ],
       };

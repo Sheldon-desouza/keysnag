@@ -1,5 +1,5 @@
-// Loads a CheckContext from CLI overrides, env vars, vibeguard.config.json, and a local .env.
-// Precedence, highest first: CLI flags (passed in as `overrides`) > env vars > vibeguard.config.json.
+// Loads a CheckContext from CLI overrides, env vars, keysnag.config.json, and a local .env.
+// Precedence, highest first: CLI flags (passed in as `overrides`) > env vars > keysnag.config.json.
 import { readFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
 import type { CheckContext, Check } from "./types.js";
@@ -36,7 +36,7 @@ function loadDotEnv(cwd: string): Record<string, string> {
   }
 }
 
-interface VibeguardConfigFile {
+interface KeysnagConfigFile {
   repoDir?: string;
   siteUrl?: string;
   supabaseUrl?: string;
@@ -47,11 +47,11 @@ interface VibeguardConfigFile {
   checks?: string[];
 }
 
-function loadConfigFile(cwd: string): VibeguardConfigFile {
-  const path = resolve(cwd, "vibeguard.config.json");
+function loadConfigFile(cwd: string): KeysnagConfigFile {
+  const path = resolve(cwd, "keysnag.config.json");
   if (!existsSync(path)) return {};
   try {
-    return JSON.parse(readFileSync(path, "utf8")) as VibeguardConfigFile;
+    return JSON.parse(readFileSync(path, "utf8")) as KeysnagConfigFile;
   } catch {
     return {};
   }
@@ -72,8 +72,8 @@ export interface ContextOverrides {
 /**
  * Builds a CheckContext. Precedence per field, highest first:
  * 1. `overrides` (CLI flags)
- * 2. env vars (VG_REPO_DIR, VG_SITE_URL, VG_SUPABASE_URL, VG_SUPABASE_ANON_KEY, VG_PG_URL, VG_TOKEN_A, VG_TOKEN_B)
- * 3. vibeguard.config.json in cwd
+ * 2. env vars (KEYSNAG_REPO_DIR, KEYSNAG_SITE_URL, KEYSNAG_SUPABASE_URL, KEYSNAG_SUPABASE_ANON_KEY, KEYSNAG_PG_URL, KEYSNAG_TOKEN_A, KEYSNAG_TOKEN_B)
+ * 3. keysnag.config.json in cwd
  * A local .env (simple parser, no dotenv dep) is merged into process.env lookups at the same
  * precedence as real env vars, without overwriting a real env var that is already set.
  */
@@ -87,20 +87,20 @@ export function loadContext(overrides: ContextOverrides = {}): CheckContext {
 
   return {
     repoDir:
-      overrides.repoDir ?? envOrDotEnv("VG_REPO_DIR") ?? config.repoDir,
+      overrides.repoDir ?? envOrDotEnv("KEYSNAG_REPO_DIR") ?? config.repoDir,
     siteUrl:
-      overrides.siteUrl ?? envOrDotEnv("VG_SITE_URL") ?? config.siteUrl,
+      overrides.siteUrl ?? envOrDotEnv("KEYSNAG_SITE_URL") ?? config.siteUrl,
     supabaseUrl:
       overrides.supabaseUrl ??
-      envOrDotEnv("VG_SUPABASE_URL") ??
+      envOrDotEnv("KEYSNAG_SUPABASE_URL") ??
       config.supabaseUrl,
     supabaseAnonKey:
       overrides.supabaseAnonKey ??
-      envOrDotEnv("VG_SUPABASE_ANON_KEY") ??
+      envOrDotEnv("KEYSNAG_SUPABASE_ANON_KEY") ??
       config.supabaseAnonKey,
-    pgUrl: overrides.pgUrl ?? envOrDotEnv("VG_PG_URL") ?? config.pgUrl,
-    tokenA: overrides.tokenA ?? envOrDotEnv("VG_TOKEN_A") ?? config.tokenA,
-    tokenB: overrides.tokenB ?? envOrDotEnv("VG_TOKEN_B") ?? config.tokenB,
+    pgUrl: overrides.pgUrl ?? envOrDotEnv("KEYSNAG_PG_URL") ?? config.pgUrl,
+    tokenA: overrides.tokenA ?? envOrDotEnv("KEYSNAG_TOKEN_A") ?? config.tokenA,
+    tokenB: overrides.tokenB ?? envOrDotEnv("KEYSNAG_TOKEN_B") ?? config.tokenB,
     log: overrides.log ?? ((msg: string) => console.error(msg)),
   };
 }

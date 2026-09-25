@@ -1,6 +1,6 @@
 // INTENTIONALLY INSECURE FIXTURE — never real
 // IDOR: returns any order by id with no check that the caller owns it.
-// vibeguard's `twoaccount` check must catch account B reading account A's
+// keysnag's `twoaccount` check must catch account B reading account A's
 // order by guessing/incrementing the id.
 import { NextResponse } from "next/server";
 import { supabase } from "../../../../lib/supabaseClient";

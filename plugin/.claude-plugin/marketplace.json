@@ -1,5 +1,5 @@
 {
-  "name": "vibeguard",
+  "name": "keysnag",
   "description": "Local security checks for AI-built Next.js + Supabase apps: leaked secrets, an exposed URL probe, an RLS audit, and a cross-account access test. Nothing leaves your machine.",
   "owner": {
     "name": "Sheldon de Souza",
@@ -7,7 +7,7 @@
   },
   "plugins": [
     {
-      "name": "vibeguard",
+      "name": "keysnag",
       "source": "./",
       "description": "Local, no-telemetry security scan for AI-built apps: secrets, an exposed URL probe, an RLS audit, and a cross-account access test."
     }

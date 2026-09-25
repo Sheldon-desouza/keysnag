@@ -1,4 +1,4 @@
-// Turns CheckResult[] into the three output shapes vibeguard produces: a human markdown report,
+// Turns CheckResult[] into the three output shapes keysnag produces: a human markdown report,
 // raw JSON, and a copy-paste block phrased for a coding agent to act on.
 import type { CheckResult, Finding, Severity } from "./types.js";
 
@@ -39,7 +39,7 @@ function summaryLine(results: CheckResult[]): string {
 
 export function renderMarkdown(results: CheckResult[]): string {
   const lines: string[] = [];
-  lines.push("# vibeguard report", "");
+  lines.push("# keysnag report", "");
   lines.push(summaryLine(results), "");
 
   const findings = allFindings(results);
@@ -78,7 +78,7 @@ export function renderJson(results: CheckResult[]): string {
 export function renderAgentTasks(results: CheckResult[]): string {
   const findings = allFindings(results);
   const lines: string[] = [];
-  lines.push("## vibeguard agent tasks", "");
+  lines.push("## keysnag agent tasks", "");
   lines.push(summaryLine(results), "");
 
   if (findings.length === 0) {

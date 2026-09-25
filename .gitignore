@@ -3,7 +3,7 @@ dist/
 .env
 .env.local
 # Exception: the fixture's .env.local is a deliberately committed insecure
-# fixture, seeded so vibeguard's `secrets` check has something to catch.
+# fixture, seeded so keysnag's `secrets` check has something to catch.
 !fixture/.env.local
 *.report.md
 *.report.json

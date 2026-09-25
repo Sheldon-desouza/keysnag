@@ -1,6 +1,6 @@
 // INTENTIONALLY INSECURE FIXTURE — never real
 // This client file ships to the browser bundle. A real service_role key here
-// would let anyone bypass RLS entirely. vibeguard's `secrets` check must
+// would let anyone bypass RLS entirely. keysnag's `secrets` check must
 // catch this pattern.
 import { createClient } from "@supabase/supabase-js";
 

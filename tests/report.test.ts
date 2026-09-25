@@ -36,7 +36,7 @@ function sampleResults(): CheckResult[] {
     {
       check: "rls",
       ran: false,
-      skippedReason: "missing VG_PG_URL",
+      skippedReason: "missing KEYSNAG_PG_URL",
       findings: [],
     },
   ];
@@ -50,7 +50,7 @@ test("renderMarkdown groups findings critical-first and includes a summary count
   assert.ok(criticalIdx < mediumIdx, "critical section must appear before medium");
   assert.match(md, /1 check\(s\) ran, 1 skipped\..*1 critical.*1 medium/);
   assert.match(md, /## Skipped checks/);
-  assert.match(md, /missing VG_PG_URL/);
+  assert.match(md, /missing KEYSNAG_PG_URL/);
 });
 
 test("renderAgentTasks emits one bullet per finding", () => {

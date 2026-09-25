@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// vibeguard scan [--repo DIR] [--url URL] [--checks a,b] [--json] [--out FILE]
+// keysnag scan [--repo DIR] [--url URL] [--checks a,b] [--json] [--out FILE]
 // Findings are not process failures: this always exits 0 unless the flags themselves are malformed.
 import { writeFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -56,14 +56,14 @@ async function main(): Promise<void> {
     flags = parseArgs(process.argv.slice(2));
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    console.error(`vibeguard: ${message}`);
-    console.error("usage: vibeguard scan [--repo DIR] [--url URL] [--checks a,b] [--json] [--out FILE]");
+    console.error(`keysnag: ${message}`);
+    console.error("usage: keysnag scan [--repo DIR] [--url URL] [--checks a,b] [--json] [--out FILE]");
     process.exit(1);
   }
 
   if (flags.command !== "scan") {
-    console.error(`vibeguard: unknown command "${flags.command ?? ""}"`);
-    console.error("usage: vibeguard scan [--repo DIR] [--url URL] [--checks a,b] [--json] [--out FILE]");
+    console.error(`keysnag: unknown command "${flags.command ?? ""}"`);
+    console.error("usage: keysnag scan [--repo DIR] [--url URL] [--checks a,b] [--json] [--out FILE]");
     process.exit(1);
   }
 
@@ -71,7 +71,7 @@ async function main(): Promise<void> {
   const enabled = loadEnabledChecks(flags.checks);
   const results = await runChecks(ctx, enabled);
 
-  const outPath = flags.out ?? resolve(process.cwd(), "vibeguard.report.md");
+  const outPath = flags.out ?? resolve(process.cwd(), "keysnag.report.md");
   writeFileSync(outPath, renderMarkdown(results), "utf8");
 
   if (flags.json) {

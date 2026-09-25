@@ -1,11 +1,11 @@
 ---
-name: vibeguard
+name: keysnag
 description: Local, no-telemetry security checks for AI-built Next.js + Supabase apps (leaked secrets, exposed URLs, missing RLS, cross-account data leaks). Use when the user asks things like "is my app secure", "check before launch", "audit my supabase app", "did the AI leak my keys", or before shipping a vibe-coded project to real users.
 ---
 
-# vibeguard
+# keysnag
 
-vibeguard runs four checks against a project and nothing else: it never phones
+keysnag runs four checks against a project and nothing else: it never phones
 home, and the only network calls it makes are to a site URL, Supabase URL, or
 Postgres URL the user supplies themselves.
 
@@ -19,7 +19,7 @@ Run it when the user:
 
 ## How to run it
 
-- CLI: `npx vibeguard scan --repo <dir> --url <site url>` (flags optional; each
+- CLI: `npx keysnag scan --repo <dir> --url <site url>` (flags optional; each
   missing input just skips the checks that need it).
 - MCP: call `run_security_check` for the full report, or `check_<name>` for a
   single check (`check_secrets`, `check_urlprobe`, `check_rls`,
@@ -31,14 +31,14 @@ Run it when the user:
 
 - **secrets** — scans the repo for secrets that ended up somewhere they'll
   reach a client bundle (service-role keys, DB passwords, etc). Needs
-  `VG_REPO_DIR` (or run from inside the repo).
+  `KEYSNAG_REPO_DIR` (or run from inside the repo).
 - **urlprobe** — hits the live site URL and looks for exposed debug routes,
-  leaked config, or unauthenticated admin surfaces. Needs `VG_SITE_URL`.
+  leaked config, or unauthenticated admin surfaces. Needs `KEYSNAG_SITE_URL`.
 - **rls** — connects with a read-only Postgres role and checks Supabase tables
-  for missing or misconfigured Row Level Security. Needs `VG_PG_URL`.
+  for missing or misconfigured Row Level Security. Needs `KEYSNAG_PG_URL`.
 - **twoaccount** — signs in as two real users (via their JWTs) and checks
-  whether user A can read or write user B's data. Needs `VG_SUPABASE_URL`,
-  `VG_SUPABASE_ANON_KEY`, `VG_TOKEN_A`, `VG_TOKEN_B`.
+  whether user A can read or write user B's data. Needs `KEYSNAG_SUPABASE_URL`,
+  `KEYSNAG_SUPABASE_ANON_KEY`, `KEYSNAG_TOKEN_A`, `KEYSNAG_TOKEN_B`.
 
 ## Reading the output
 

@@ -266,7 +266,7 @@ async function scanDeployedBundles(
   try {
     const res = await fetch(siteUrl, {
       signal: AbortSignal.timeout(10_000),
-      headers: { "User-Agent": "vibeguard-scan" },
+      headers: { "User-Agent": "keysnag-scan" },
     });
     html = await res.text();
   } catch (err) {
@@ -295,7 +295,7 @@ async function scanDeployedBundles(
     try {
       const res = await fetch(url, {
         signal: AbortSignal.timeout(10_000),
-        headers: { "User-Agent": "vibeguard-scan" },
+        headers: { "User-Agent": "keysnag-scan" },
       });
       if (!res.ok) continue;
       const buf = await res.arrayBuffer();

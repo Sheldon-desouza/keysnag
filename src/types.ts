@@ -1,4 +1,4 @@
-// vibeguard contract. Every check implements Check; the harness consumes CheckResult.
+// keysnag contract. Every check implements Check; the harness consumes CheckResult.
 // This file is authoritative. Checks and harness must not redefine these shapes.
 
 export type Severity = "critical" | "high" | "medium" | "low" | "info";

@@ -5,7 +5,7 @@ import type { Check, CheckContext, CheckResult, Finding } from "../types.js";
 
 const MAX_TABLES = 40;
 const REQUEST_TIMEOUT_MS = 10_000;
-const USER_AGENT = "vibeguard-scan";
+const USER_AGENT = "keysnag-scan";
 
 /** Columns that plausibly identify the row's owner. */
 const OWNER_COLUMN = /^(user_id|owner|owner_id|profile_id|created_by|account_id)$/i;
@@ -133,7 +133,7 @@ const check: Check = {
             check: check.name,
             severity: "info",
             title: "could not list tables for the cross-account test",
-            detail: `vibeguard could not enumerate tables to test. Error: ${message}`,
+            detail: `keysnag could not enumerate tables to test. Error: ${message}`,
             fix: "Provide a working pgUrl, or ensure the PostgREST OpenAPI root is reachable with the anon key.",
           },
         ],
@@ -150,8 +150,8 @@ const check: Check = {
             check: check.name,
             severity: "info",
             title: "no tables found to test for cross-account access",
-            detail: "vibeguard could not discover any public tables via pgUrl or the PostgREST OpenAPI document, so the cross-account test could not run against anything.",
-            fix: "Provide VG_PG_URL, or check that the Supabase REST API is reachable.",
+            detail: "keysnag could not discover any public tables via pgUrl or the PostgREST OpenAPI document, so the cross-account test could not run against anything.",
+            fix: "Provide KEYSNAG_PG_URL, or check that the Supabase REST API is reachable.",
           },
         ],
       };
@@ -202,7 +202,7 @@ const check: Check = {
           check: check.name,
           severity: "critical",
           title: `user B can read user A's rows in ${table}`,
-          detail: `Using account B's own session token, vibeguard read rows from public.${table} whose "${ownerColumn}" column belongs to a different user (not B). This means the REST API returns other users' data to anyone with a valid login, regardless of who owns the row.`,
+          detail: `Using account B's own session token, keysnag read rows from public.${table} whose "${ownerColumn}" column belongs to a different user (not B). This means the REST API returns other users' data to anyone with a valid login, regardless of who owns the row.`,
           location: `public.${table}`,
           evidence: `column "${ownerColumn}" on a row returned to B did not match B's own id (value redacted)`,
           fix: `Add or fix a Row Level Security policy on public.${table} so SELECT is scoped to USING (auth.uid() = ${ownerColumn}).`,
@@ -241,7 +241,7 @@ const check: Check = {
                 check: check.name,
                 severity: "critical",
                 title: `user B can modify user A's rows in ${table}`,
-                detail: `Using account B's own session token, vibeguard performed a no-op update (same value written back) on a row in public.${table} owned by another user, and the API accepted it. A real attacker could change any writable column on other users' rows here.`,
+                detail: `Using account B's own session token, keysnag performed a no-op update (same value written back) on a row in public.${table} owned by another user, and the API accepted it. A real attacker could change any writable column on other users' rows here.`,
                 location: `public.${table}`,
                 evidence: `PATCH by B on a row owned by another user returned ${patchRes.status} with the row affected`,
                 fix: `Add or fix a Row Level Security policy on public.${table} so UPDATE is scoped to USING (auth.uid() = ${ownerColumn}) WITH CHECK (auth.uid() = ${ownerColumn}).`,

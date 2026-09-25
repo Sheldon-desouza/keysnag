@@ -2,10 +2,14 @@
 // leaked credentials. Never puts a live secret value in a finding; always maskSecret().
 import { readFile, readdir, stat } from "node:fs/promises";
 import { join, relative, extname } from "node:path";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import type { Check, CheckContext, CheckResult, Finding, Severity } from "../types.js";
 import { maskSecret } from "../types.js";
 
-const SKIP_DIRS = new Set(["node_modules", ".git", "dist", ".next", "build"]);
+const pexec = promisify(execFile);
+
+const SKIP_DIRS = new Set(["node_modules", ".git", "dist", ".next", "build", ".claude", ".vercel", "coverage", ".turbo", "out"]);
 
 // extensions we don't bother reading as text (binary/media/lockfiles/etc.)
 const SKIP_EXTS = new Set([
@@ -58,8 +62,30 @@ const PATTERNS: PatternDef[] = [
   },
 ];
 
-// generic KEY/SECRET/TOKEN/PASSWORD = "high-entropy string" assignment
-const GENERIC_ASSIGNMENT = /\b([A-Z0-9_]*(?:KEY|SECRET|TOKEN|PASSWORD)[A-Z0-9_]*)\s*[:=]\s*["'`]([A-Za-z0-9+/_=.\-]{20,})["'`]/g;
+// generic assignment where the identifier contains KEY/SECRET/TOKEN/PASSWORD as a
+// whole underscore-delimited word (so KEYWORDS_REC_V5 does NOT match, but
+// STRIPE_SECRET_KEY does), assigned to a string literal.
+const GENERIC_ASSIGNMENT = /\b((?:[A-Z0-9]+_)*(?:KEY|SECRET|TOKEN|PASSWORD|PASSWD|APIKEY|CREDENTIALS?)(?:_[A-Z0-9]+)*)\s*[:=]\s*["'`]([A-Za-z0-9+/_=.\-]{20,})["'`]/g;
+
+/**
+ * Whether a string assigned to a KEY/SECRET/TOKEN-looking identifier actually
+ * looks like a live credential, versus a storage-key name, event name, config
+ * slug, or other human-readable constant. This is the difference between
+ * `const STORAGE_KEY = "app_active_brand"` (not a secret) and a real token.
+ */
+function looksLikeSecretValue(v: string): boolean {
+  if (v.length < 24) return false;
+  // lowercase slugs joined by _ . - / : are config/storage key names, not secrets
+  if (/^[a-z0-9]+([._\-/:][a-z0-9]+)*$/.test(v)) return false;
+  // URLs and file paths are not secrets
+  if (/^(https?:\/\/|\.?\/)/.test(v)) return false;
+  // MIME types / content-types (e.g. application/vnd.foo.v5+json) are not secrets
+  if (/^[a-z]+\/[a-z0-9][a-z0-9.+_-]*$/i.test(v)) return false;
+  // require character-class diversity typical of real credentials
+  const classes = [/[a-z]/, /[A-Z]/, /[0-9]/, /[^A-Za-z0-9]/].filter((re) => re.test(v)).length;
+  if (classes < 2) return false;
+  return shannonEntropy(v) >= 3.6;
+}
 
 function shannonEntropy(s: string): number {
   const counts = new Map<string, number>();
@@ -169,8 +195,9 @@ function scanTextForSecrets(
       if (matchedValues.some((v) => v === value || v.includes(value) || value.includes(v))) continue;
       // skip clear placeholders
       if (/your[-_]?|example|changeme|placeholder|xxxx|dummy/i.test(value)) continue;
-      const entropy = shannonEntropy(value);
-      if (entropy < 3.2) continue; // low entropy, likely not a real secret
+      // skip storage-key names, config slugs, event names: the identifier says KEY
+      // but the value is not a credential. This is the #1 false-positive source.
+      if (!looksLikeSecretValue(value)) continue;
       findings.push({
         id: "secret.generic_high_entropy",
         check: "secrets",
@@ -216,9 +243,36 @@ async function walkRepo(root: string, log: (msg: string) => void): Promise<strin
   return results;
 }
 
+/**
+ * The files to scan. If repoDir is a git repo, use `git ls-files` so we only
+ * look at what is committed or about to be (tracked + untracked-not-ignored).
+ * This skips node_modules, build output, agent worktrees and gitignored .env
+ * files automatically, and means a secret in a gitignored .env.local (its
+ * correct home) is not falsely flagged as committed. Falls back to a plain
+ * filesystem walk for non-git directories.
+ */
+async function getScanFiles(repoDir: string, log: (msg: string) => void): Promise<string[]> {
+  try {
+    const { stdout } = await pexec(
+      "git",
+      ["-C", repoDir, "ls-files", "--cached", "--others", "--exclude-standard", "-z"],
+      { maxBuffer: 128 * 1024 * 1024 },
+    );
+    const rel = stdout.split("\u0000").filter(Boolean);
+    if (rel.length === 0) return await walkRepo(repoDir, log);
+    log(`secrets: scanning ${rel.length} git-tracked/untracked files (gitignored paths skipped)`);
+    return rel
+      .filter((r) => !SKIP_EXTS.has(extname(r)))
+      .map((r) => join(repoDir, r));
+  } catch {
+    log("secrets: not a git repo, walking the filesystem");
+    return await walkRepo(repoDir, log);
+  }
+}
+
 async function scanRepo(repoDir: string, log: (msg: string) => void): Promise<Finding[]> {
   const findings: Finding[] = [];
-  const files = await walkRepo(repoDir, log);
+  const files = await getScanFiles(repoDir, log);
 
   for (const filePath of files) {
     let info;

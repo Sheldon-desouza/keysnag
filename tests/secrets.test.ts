@@ -88,3 +88,37 @@ test("a value caught by a specific rule is not also double-reported as generic h
     }
   }
 });
+
+// Regression tests from dogfooding on a real repo (2026-09-25): the generic rule
+// was flagging storage-key names, config slugs and MIME types as secrets.
+test("does NOT flag storage-key names, config slugs, or MIME types (real-repo false positives)", async () => {
+  const { mkdtemp, writeFile, mkdir } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const dir = await mkdtemp(join(tmpdir(), "keysnag-fp-"));
+  await writeFile(
+    join(dir, "sample.ts"),
+    [
+      "const STORAGE_KEY = 'app_active_brand';",
+      "const COOKIE_KEY = 'app_active_brand';",
+      "const LTD_BANNER_DISMISSED_KEY = 'ltd_banner_dismissed';",
+      "const KEYWORDS_REC_V5 = 'application/vnd.spkeywordsrecommendation.v5+json';",
+      "const ANALYTICS_CONSENT_KEY = 'analytics_consent_v2';",
+    ].join("\n"),
+    "utf8",
+  );
+  const secrets = (await import("../src/checks/secrets.js")).default;
+  const res = await secrets.run({ repoDir: dir, log: () => {} });
+  assert.equal(res.findings.length, 0, `expected no findings, got: ${JSON.stringify(res.findings.map((f) => f.title))}`);
+});
+
+test("STILL flags a genuine high-entropy secret assigned to a *_KEY identifier", async () => {
+  const { mkdtemp, writeFile } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const dir = await mkdtemp(join(tmpdir(), "keysnag-tp-"));
+  await writeFile(join(dir, "config.ts"), "const API_SECRET_KEY = 'xR9-Kf2mQ7wZ1pL8vB4nT6yH0aE3sD5cG';", "utf8");
+  const secrets = (await import("../src/checks/secrets.js")).default;
+  const res = await secrets.run({ repoDir: dir, log: () => {} });
+  assert.ok(res.findings.some((f) => f.id === "secret.generic_high_entropy"), "expected the real secret to be flagged");
+});

@@ -55,8 +55,7 @@ test("evidence is always masked, never a full live secret value", async () => {
 });
 
 test("a hit in a client-shipped file (.tsx) or a committed .env is severity critical", async () => {
-  // The secrets check treats .tsx/.jsx and committed .env files as client-shipped/exposed;
-  // a plain .ts lib file (e.g. fixture/lib/supabaseClient.ts) is not, by the check's own rule.
+  // The secrets check treats .tsx/.jsx and committed .env files as client-shipped/exposed.
   const findings = await runSecrets();
   const clientOrEnvHits = findings.filter(
     (f) => f.location?.includes("page.tsx") || f.location?.includes(".env.local"),
@@ -64,5 +63,28 @@ test("a hit in a client-shipped file (.tsx) or a committed .env is severity crit
   assert.ok(clientOrEnvHits.length > 0, "expected at least one finding located in page.tsx or .env.local");
   for (const f of clientOrEnvHits) {
     assert.equal(f.severity, "critical", `expected critical for ${f.id} at ${f.location}`);
+  }
+});
+
+test("a service_role JWT is critical even in a plain .ts file (bypasses RLS anywhere)", async () => {
+  const findings = await runSecrets();
+  const svc = findings.filter((f) => f.id === "secret.supabase_service_role");
+  assert.ok(svc.length > 0, "expected service_role findings");
+  for (const f of svc) {
+    assert.equal(f.severity, "critical", `service_role must be critical, got ${f.severity} at ${f.location}`);
+  }
+});
+
+test("a value caught by a specific rule is not also double-reported as generic high-entropy", async () => {
+  const findings = await runSecrets();
+  const byLocation = new Map<string, string[]>();
+  for (const f of findings) {
+    const key = f.location ?? "";
+    byLocation.set(key, [...(byLocation.get(key) ?? []), f.id]);
+  }
+  for (const [loc, ids] of byLocation) {
+    if (ids.some((id) => id.startsWith("secret.stripe_key") || id.startsWith("secret.openai_key"))) {
+      assert.ok(!ids.includes("secret.generic_high_entropy"), `duplicate generic hit at ${loc}: ${ids.join(", ")}`);
+    }
   }
 });

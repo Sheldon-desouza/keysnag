@@ -113,20 +113,25 @@ function scanTextForSecrets(
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
+    // values already reported by a specific rule on this line, so the generic
+    // high-entropy rule does not double-report the same credential.
+    const matchedValues: string[] = [];
 
     // JWTs: check for Supabase service_role
     for (const match of line.matchAll(JWT_REGEX)) {
       const token = match[0];
       const payload = decodeJwtPayload(token);
       if (payload && payload["role"] === "service_role") {
-        const critical = clientShipped || isEnv;
+        // A service_role JWT bypasses RLS entirely, so it is always critical
+        // wherever it is found, not only in client-shipped or .env files.
+        matchedValues.push(token);
         findings.push({
           id: "secret.supabase_service_role",
           check: "secrets",
-          severity: critical ? "critical" : "high",
+          severity: "critical",
           title: "Supabase service_role key found",
           detail:
-            "This is a Supabase service_role JWT, which bypasses Row Level Security entirely. Anyone with this token can read or write any row in your database." +
+            "This is a Supabase service_role JWT, which bypasses Row Level Security entirely. Anyone with this token can read or write any row in your database, no matter which file it sits in." +
             (clientShipped ? " It was found in a file that ships to the browser." : "") +
             (isEnv ? " It was found in a committed .env file." : ""),
           location: location(i + 1),
@@ -140,6 +145,7 @@ function scanTextForSecrets(
       pat.regex.lastIndex = 0;
       for (const match of line.matchAll(pat.regex)) {
         const value = match[0];
+        matchedValues.push(value);
         const critical = pat.severity === "critical" || clientShipped || isEnv;
         findings.push({
           id: pat.id + (clientShipped ? "_in_client" : ""),
@@ -159,7 +165,9 @@ function scanTextForSecrets(
     GENERIC_ASSIGNMENT.lastIndex = 0;
     for (const match of line.matchAll(GENERIC_ASSIGNMENT)) {
       const [, ident, value] = match;
-      // skip if this is one of the specific patterns already caught, or clearly a placeholder
+      // skip if a specific rule already reported this value on this line (dedup)
+      if (matchedValues.some((v) => v === value || v.includes(value) || value.includes(v))) continue;
+      // skip clear placeholders
       if (/your[-_]?|example|changeme|placeholder|xxxx|dummy/i.test(value)) continue;
       const entropy = shannonEntropy(value);
       if (entropy < 3.2) continue; // low entropy, likely not a real secret

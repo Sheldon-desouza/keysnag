@@ -196,12 +196,25 @@ async function probeSecurityHeaders(siteUrl: string): Promise<Finding[]> {
   ];
 }
 
-/** Discover a plausible auth endpoint on the app origin, without ever hitting an out-of-scope origin. */
+/**
+ * Discover a REAL auth endpoint on the app origin. Compares each candidate to a
+ * control request to a path that certainly does not exist: if the candidate
+ * returns the same status as the control, the response is a framework default
+ * (a blanket middleware deny or a catch-all), not a distinct endpoint, so we do
+ * not report on it. This stops keysnag calling a default-deny an unprotected
+ * endpoint. Only API paths are considered; a login PAGE (GET 200) is not a
+ * credential endpoint worth flood-probing.
+ */
 async function discoverAuthPath(origin: string): Promise<string | null> {
-  const candidates = ["/api/auth", "/api/login", "/login"];
+  const control = await safeGet(origin + "/api/keysnag-control-" + Math.random().toString(36).slice(2, 10));
+  const controlStatus = control?.status ?? 0;
+  const candidates = ["/api/auth", "/api/login", "/api/signin", "/api/session"];
   for (const path of candidates) {
     const result = await safeGet(origin + path);
-    if (result && result.status !== 404) return path;
+    if (!result) continue;
+    if (result.status === 404) continue;
+    if (result.status === controlStatus) continue; // same as a nonexistent path => not a real endpoint
+    return path;
   }
   return null;
 }
@@ -226,7 +239,7 @@ async function probeRateLimit(origin: string): Promise<Finding[]> {
       check: "urlprobe",
       severity: "medium",
       title: `No rate limiting observed on ${path}`,
-      detail: `Sent 12 sequential requests to ${path}, 200ms apart, and none were throttled (no 429/403). An unthrottled auth endpoint is easier to brute-force or abuse.`,
+      detail: `Sent 12 sequential requests to ${path}, 200ms apart, and none were throttled (no 429/403). An unthrottled auth endpoint is easier to brute-force. Note: if your app authenticates directly against Supabase/Auth0/Clerk from the browser, the real rate limit lives in that provider's settings, not this route.`,
       location: origin + path,
       fix: "Add rate limiting (e.g. per-IP or per-account token bucket) in front of this endpoint, especially for login/auth flows.",
     },

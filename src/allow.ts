@@ -36,16 +36,36 @@ export function loadAllowList(configPath: string): AllowEntry[] {
   return validateAllowList(allow as unknown[], configPath);
 }
 
-/** Validates a raw allow array. Throws naming every entry missing a non-empty reason and/or bound,
- * exactly like an exceptions-baseline script refuses to run over an unannotated exception. */
+// A valid id is either a concrete finding id ("<check>.<rule>", e.g. "secret.stripe_key")
+// or a dotted prefix of one with at least one segment after the check name ("secret."),
+// each segment lowercase-alnum-with-hyphens/underscores. A bare check name with no trailing
+// dot ("secret") is not specific enough and is rejected below.
+function isConcreteId(id: string): boolean {
+  // has at least one "." followed by a rule-name segment, e.g. "secret.stripe_key"
+  return /^[a-z][a-z0-9-]*\.[a-z0-9_]+$/.test(id);
+}
+
+function isDottedPrefix(id: string): boolean {
+  // e.g. "secret." or "authz.route_" — a check name (plus optional segments) with a trailing dot
+  return /^[a-z][a-z0-9-]*(\.[a-z0-9_]+)*\.$/.test(id);
+}
+
+function isWideOpenLocation(location: string): boolean {
+  return location === "**" || location === "*" || location === "";
+}
+
+/** Validates a raw allow array. Throws naming every entry that is missing a non-empty reason
+ * and/or bound, has an empty or malformed id, or pairs a wide-open location ("**"/"*"/missing)
+ * with anything less specific than a full concrete finding id — exactly like
+ * an exceptions-baseline script refuses to run over an unannotated or unbounded exception. */
 export function validateAllowList(entries: unknown[], sourceLabel = "keysnag.config.json"): AllowEntry[] {
   const bad: string[] = [];
   const result: AllowEntry[] = [];
 
   entries.forEach((raw, i) => {
     const entry = raw as Partial<AllowEntry>;
-    const id = typeof entry.id === "string" ? entry.id : "";
-    const location = typeof entry.location === "string" ? entry.location : "";
+    const id = typeof entry.id === "string" ? entry.id.trim() : "";
+    const location = typeof entry.location === "string" ? entry.location.trim() : "";
     const reason = typeof entry.reason === "string" ? entry.reason.trim() : "";
     const bound = typeof entry.bound === "string" ? entry.bound.trim() : "";
 
@@ -53,8 +73,27 @@ export function validateAllowList(entries: unknown[], sourceLabel = "keysnag.con
     if (!reason) missing.push("reason");
     if (!bound) missing.push("bound");
 
+    const label = `entry ${i} (id: "${id || "?"}", location: "${location || "?"}")`;
+
     if (missing.length > 0) {
-      bad.push(`  - entry ${i} (id: "${id || "?"}", location: "${location || "?"}") is missing ${missing.join(" and ")}`);
+      bad.push(`  - ${label} is missing ${missing.join(" and ")}`);
+      return;
+    }
+
+    if (!id) {
+      bad.push(`  - ${label} has an empty id — name a specific finding id (e.g. "secret.stripe_key") or a dotted prefix (e.g. "secret.")`);
+      return;
+    }
+
+    const concrete = isConcreteId(id);
+    const prefix = isDottedPrefix(id);
+    if (!concrete && !prefix) {
+      bad.push(`  - ${label} has a malformed id — must be a concrete finding id or a dotted prefix like "<check>." (e.g. "secret.stripe_key" or "secret.")`);
+      return;
+    }
+
+    if (isWideOpenLocation(location) && !concrete) {
+      bad.push(`  - ${label} pairs a wide-open location ("${location || "(missing)"}") with a prefix-only id — name a specific finding id or a narrower location`);
       return;
     }
 
@@ -64,12 +103,14 @@ export function validateAllowList(entries: unknown[], sourceLabel = "keysnag.con
   if (bad.length > 0) {
     throw new Error(
       [
-        `keysnag: refusing to run — these entries in ${sourceLabel} "allow" have no compensating bound:`,
+        `keysnag: refusing to run — these entries in ${sourceLabel} "allow" are invalid:`,
         ...bad,
         "",
-        'Every exception must state "reason" (why it is acceptable) and "bound" (the control that stops',
-        "abuse, e.g. a rate limit, a quota, an auth check, or \"no user data\"). If there is no such bound,",
-        "add one to the code instead of listing it here.",
+        'Every exception must name a specific finding id (or a dotted prefix like "secret.") and, if the',
+        "location is wide open (\"**\"/\"*\"/missing), the id must be a full concrete finding id. It must also",
+        'state "reason" (why it is acceptable) and "bound" (the control that stops abuse, e.g. a rate',
+        'limit, a quota, an auth check, or "no user data"). If there is no such bound, add one to the code',
+        "instead of listing it here.",
       ].join("\n"),
     );
   }

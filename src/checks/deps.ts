@@ -10,6 +10,8 @@ const MAX_PACKAGES = 2000;
 const OSV_BATCH_SIZE = 100;
 const OSV_TIMEOUT_MS = 15_000;
 const MAX_INSTALL_SCRIPT_DEPS = 500;
+const MAX_VULN_IDS = 300;
+const VULN_FETCH_CONCURRENCY = 6;
 
 export interface PackageVersion {
   name: string;
@@ -115,7 +117,7 @@ export function parseYarnLock(raw: string): PackageVersion[] {
   return out;
 }
 
-async function loadLockfile(repoDir: string, log: (msg: string) => void): Promise<{ packages: PackageVersion[]; found: boolean }> {
+async function loadLockfile(repoDir: string, log: (msg: string) => void): Promise<{ packages: PackageVersion[]; found: boolean; file: string }> {
   const candidates: Array<{ file: string; parse: (raw: string) => PackageVersion[] }> = [
     { file: "package-lock.json", parse: parsePackageLock },
     { file: "pnpm-lock.yaml", parse: parsePnpmLock },
@@ -126,12 +128,12 @@ async function loadLockfile(repoDir: string, log: (msg: string) => void): Promis
       const raw = await readFile(join(repoDir, file), "utf8");
       const packages = parse(raw);
       log(`deps: parsed ${packages.length} package(s) from ${file}`);
-      return { packages, found: true };
+      return { packages, found: true, file };
     } catch {
       continue;
     }
   }
-  return { packages: [], found: false };
+  return { packages: [], found: false, file: "package-lock.json" };
 }
 
 function dedupe(packages: PackageVersion[]): PackageVersion[] {
@@ -142,12 +144,55 @@ function dedupe(packages: PackageVersion[]): PackageVersion[] {
   return [...seen.values()];
 }
 
+// CVSS 3.x base-score calculator (FIRST.org spec section 7.1). Metric weights per the
+// official tables; scope ("S") changes the PR weight and the impact formula.
+const CVSS_AV: Record<string, number> = { N: 0.85, A: 0.62, L: 0.55, P: 0.2 };
+const CVSS_AC: Record<string, number> = { L: 0.77, H: 0.44 };
+const CVSS_UI: Record<string, number> = { N: 0.85, R: 0.62 };
+const CVSS_PR_UNCHANGED: Record<string, number> = { N: 0.85, L: 0.62, H: 0.27 };
+const CVSS_PR_CHANGED: Record<string, number> = { N: 0.85, L: 0.68, H: 0.5 };
+const CVSS_CIA: Record<string, number> = { H: 0.56, L: 0.22, N: 0 };
+
+/** CVSS's Roundup(x): round up to the nearest 0.1. */
+function cvssRoundUp(x: number): number {
+  const intInput = Math.round(x * 100000);
+  if (intInput % 10000 === 0) return intInput / 100000;
+  return (Math.floor(intInput / 10000) + 1) / 10;
+}
+
+/** Compute a CVSS 3.x base score from a vector string, e.g. "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H". */
+export function cvssBaseScoreFromVector(vector: string): number | null {
+  if (!/^CVSS:3\.[01]\//.test(vector)) return null;
+  const metrics: Record<string, string> = {};
+  for (const part of vector.split("/").slice(1)) {
+    const [key, value] = part.split(":");
+    if (key && value) metrics[key] = value;
+  }
+  const scope = metrics.S;
+  if (scope !== "U" && scope !== "C") return null;
+
+  const av = CVSS_AV[metrics.AV];
+  const ac = CVSS_AC[metrics.AC];
+  const ui = CVSS_UI[metrics.UI];
+  const pr = (scope === "C" ? CVSS_PR_CHANGED : CVSS_PR_UNCHANGED)[metrics.PR];
+  const c = CVSS_CIA[metrics.C];
+  const i = CVSS_CIA[metrics.I];
+  const a = CVSS_CIA[metrics.A];
+  if ([av, ac, ui, pr, c, i, a].some((v) => v === undefined)) return null;
+
+  const iss = 1 - (1 - c!) * (1 - i!) * (1 - a!);
+  const impact = scope === "U" ? 6.42 * iss : 7.52 * (iss - 0.029) - 3.25 * Math.pow(iss - 0.02, 15);
+  const exploitability = 8.22 * av! * ac! * pr! * ui!;
+  if (impact <= 0) return 0;
+  const base = scope === "U" ? impact + exploitability : 1.08 * (impact + exploitability);
+  return cvssRoundUp(Math.min(base, 10));
+}
+
 /** Parse a CVSS score from either a bare number string or a CVSS vector string. */
 export function parseCvssScore(score: string): number | null {
+  if (/^CVSS:3\./.test(score)) return cvssBaseScoreFromVector(score);
   const num = Number(score);
   if (!Number.isNaN(num)) return num;
-  // CVSS vector strings (e.g. "CVSS:3.1/AV:N/AC:L/...") don't carry the base score
-  // directly; without a full calculator we cannot derive it reliably, so decline.
   return null;
 }
 
@@ -184,39 +229,134 @@ export function severityFromOsvVuln(vuln: any, hasFix: boolean): Severity {
   return sev;
 }
 
-/** Whether an OSV vuln's affected ranges include a fixed event (a fix is available). */
-function hasFixedVersion(vuln: any): boolean {
-  const affected = Array.isArray(vuln?.affected) ? vuln.affected : [];
-  for (const a of affected) {
-    const ranges = Array.isArray(a?.ranges) ? a.ranges : [];
-    for (const r of ranges) {
-      const events = Array.isArray(r?.events) ? r.events : [];
-      if (events.some((e: any) => typeof e?.fixed === "string")) return true;
-    }
+/** Compare two dotted version strings numerically, ignoring any -prerelease/+build suffix. */
+function compareVersions(a: string, b: string): number {
+  const numsOf = (v: string) => v.split(/[-+]/)[0].split(".").map((n) => parseInt(n, 10) || 0);
+  const pa = numsOf(a);
+  const pb = numsOf(b);
+  const len = Math.max(pa.length, pb.length);
+  for (let idx = 0; idx < len; idx++) {
+    const diff = (pa[idx] ?? 0) - (pb[idx] ?? 0);
+    if (diff !== 0) return diff;
   }
-  return false;
+  const aPre = /[-+]/.test(a);
+  const bPre = /[-+]/.test(b);
+  if (aPre !== bPre) return aPre ? -1 : 1; // a plain release outranks a prerelease at the same numeric version
+  return 0;
 }
 
-/** First fixed version string found in a vuln's affected ranges, if any. */
-function firstFixedVersion(vuln: any): string | null {
+/** All `fixed` events across a vuln's affected ranges for the named package (npm ecosystem). */
+function fixedVersionsFor(vuln: any, packageName: string): string[] {
   const affected = Array.isArray(vuln?.affected) ? vuln.affected : [];
+  const out: string[] = [];
   for (const a of affected) {
+    const pkgName = a?.package?.name;
+    if (pkgName && pkgName !== packageName) continue;
     const ranges = Array.isArray(a?.ranges) ? a.ranges : [];
     for (const r of ranges) {
       const events = Array.isArray(r?.events) ? r.events : [];
       for (const e of events) {
-        if (typeof e?.fixed === "string") return e.fixed;
+        if (typeof e?.fixed === "string") out.push(e.fixed);
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * The fixed version for the specific vulnerable interval that contains `installed`, walking
+ * each range's events (introduced/fixed/last_affected) in order per the OSV range spec. Returns
+ * null if `installed` falls in an interval with no fix yet (last_affected, no fixed event), or
+ * if no interval in this vuln's ranges actually contains it.
+ */
+function fixedVersionForInterval(vuln: any, packageName: string, installed: string): string | null {
+  const affected = Array.isArray(vuln?.affected) ? vuln.affected : [];
+  for (const a of affected) {
+    const pkgName = a?.package?.name;
+    if (pkgName && pkgName !== packageName) continue;
+    const ranges = Array.isArray(a?.ranges) ? a.ranges : [];
+    for (const r of ranges) {
+      const events = Array.isArray(r?.events) ? r.events : [];
+      let introduced: string | null = null;
+      for (const e of events) {
+        if (typeof e?.introduced === "string") {
+          introduced = e.introduced;
+        } else if (typeof e?.fixed === "string") {
+          const lower = introduced ?? "0";
+          if (compareVersions(installed, lower) >= 0 && compareVersions(installed, e.fixed) < 0) {
+            return e.fixed;
+          }
+          introduced = null;
+        } else if (typeof e?.last_affected === "string") {
+          const lower = introduced ?? "0";
+          if (compareVersions(installed, lower) >= 0 && compareVersions(installed, e.last_affected) <= 0) {
+            return null; // affected by this interval, but no fix has been published for it
+          }
+          introduced = null;
+        }
       }
     }
   }
   return null;
 }
 
+/** Smallest fixed version >= installed for the named package; falls back to the largest fixed version found if none clears installed. */
+function pickFixedVersion(fixedVersions: string[], installed: string): string | null {
+  if (fixedVersions.length === 0) return null;
+  const atOrAbove = fixedVersions.filter((v) => compareVersions(v, installed) >= 0);
+  const pool = atOrAbove.length > 0 ? atOrAbove : fixedVersions;
+  return pool.reduce((best, v) => (compareVersions(v, best) < 0 ? v : best));
+}
+
+/** Fetch a single OSV vuln by id, User-Agent keysnag-scan, 15s timeout. Returns null on any failure. */
+async function fetchVuln(id: string, fetchImpl: typeof fetch, log: (msg: string) => void): Promise<any | null> {
+  try {
+    const res = await fetchImpl(`https://api.osv.dev/v1/vulns/${encodeURIComponent(id)}`, {
+      headers: { "User-Agent": "keysnag-scan" },
+      signal: AbortSignal.timeout(OSV_TIMEOUT_MS),
+    });
+    if (!res.ok) throw new Error(`OSV vuln lookup responded ${res.status}`);
+    return await res.json();
+  } catch (err) {
+    log(`deps: OSV vuln detail fetch failed for ${id}: ${(err as Error).message}`);
+    return null;
+  }
+}
+
+/** Fetch OSV vuln details for each id with bounded concurrency; failures resolve to null (graceful degradation). */
+async function fetchVulnDetails(
+  ids: string[],
+  fetchImpl: typeof fetch,
+  log: (msg: string) => void,
+): Promise<Map<string, any | null>> {
+  const details = new Map<string, any | null>();
+  let next = 0;
+  async function worker() {
+    while (next < ids.length) {
+      const id = ids[next++];
+      details.set(id, await fetchVuln(id, fetchImpl, log));
+    }
+  }
+  const workers = Array.from({ length: Math.min(VULN_FETCH_CONCURRENCY, ids.length) }, () => worker());
+  await Promise.all(workers);
+  return details;
+}
+
+const SEVERITY_RANK: Record<Severity, number> = { info: 0, low: 1, medium: 2, high: 3, critical: 4 };
+
+/**
+ * Query OSV.dev querybatch for each package's advisory ids, fetch full details for every
+ * unique id (deduped, capped, bounded concurrency), then group into one deps.known_cve
+ * finding per package.
+ */
 async function queryOsv(
   packages: PackageVersion[],
+  lockfileName: string,
+  fetchImpl: typeof fetch,
   log: (msg: string) => void,
 ): Promise<Finding[] | null> {
-  const findings: Finding[] = [];
+  // Phase 1: querybatch -> advisory ids per package.
+  const idsByPackage = new Map<PackageVersion, string[]>();
   for (let i = 0; i < packages.length; i += OSV_BATCH_SIZE) {
     const batch = packages.slice(i, i + OSV_BATCH_SIZE);
     const body = {
@@ -227,7 +367,7 @@ async function queryOsv(
     };
     let json: any;
     try {
-      const res = await fetch("https://api.osv.dev/v1/querybatch", {
+      const res = await fetchImpl("https://api.osv.dev/v1/querybatch", {
         method: "POST",
         headers: { "Content-Type": "application/json", "User-Agent": "keysnag-scan" },
         body: JSON.stringify(body),
@@ -244,25 +384,64 @@ async function queryOsv(
     for (let j = 0; j < results.length; j++) {
       const pkg = batch[j];
       const vulns = Array.isArray(results[j]?.vulns) ? results[j].vulns : [];
-      for (const v of vulns) {
-        const id = v?.id ?? "unknown";
-        const hasFix = hasFixedVersion(v);
-        const severity = severityFromOsvVuln(v, hasFix);
-        const fixedVersion = firstFixedVersion(v);
-        const summary = v?.summary ?? v?.details ?? "No summary provided by OSV.";
-        findings.push({
-          id: "deps.known_cve",
-          check: "deps",
-          severity,
-          title: `${pkg.name}@${pkg.version} has a known vulnerability (${id})`,
-          detail: `${id}: ${summary} Installed version: ${pkg.version}.`,
-          location: `package: ${pkg.name}`,
-          fix: fixedVersion
-            ? `Upgrade ${pkg.name} to ${fixedVersion} or later.`
-            : `No fixed version is published yet for ${id}. Track the advisory and consider removing or replacing ${pkg.name} if the vulnerability is exploitable in this app's context.`,
-        });
-      }
+      const ids = vulns.map((v: any) => v?.id).filter((id: any): id is string => typeof id === "string");
+      if (ids.length > 0) idsByPackage.set(pkg, ids);
     }
+  }
+
+  if (idsByPackage.size === 0) return [];
+
+  // Phase 2: fetch full details for every unique advisory id (dedupe, cap 300).
+  const uniqueIds = [...new Set([...idsByPackage.values()].flat())].slice(0, MAX_VULN_IDS);
+  const details = await fetchVulnDetails(uniqueIds, fetchImpl, log);
+
+  // Phase 3: group into one finding per package.
+  const findings: Finding[] = [];
+  for (const [pkg, ids] of idsByPackage) {
+    let worstSeverity: Severity = "low";
+    const lines: string[] = [];
+    // The version that resolves EVERY advisory for this package is the largest of each
+    // advisory's own minimal fix (smallest fixed >= installed); the smallest overall fix
+    // would still leave a later advisory unpatched.
+    const perAdvisoryFixed: string[] = [];
+
+    for (const id of ids) {
+      const vuln = details.get(id);
+      let severity: Severity;
+      let summaryLine: string;
+      if (vuln == null) {
+        severity = "medium";
+        summaryLine = `${id}: severity unavailable (OSV detail lookup failed)`;
+      } else {
+        const fixedForPkg = fixedVersionsFor(vuln, pkg.name);
+        const hasFix = fixedForPkg.length > 0;
+        severity = severityFromOsvVuln(vuln, hasFix);
+        const summary = vuln?.summary ?? vuln?.details ?? "No summary provided by OSV.";
+        // Prefer the fix for the specific vulnerable interval installed falls in; fall back to
+        // the naive smallest-fixed->=-installed pick if the range data doesn't resolve cleanly.
+        const fixedForThis = fixedVersionForInterval(vuln, pkg.name, pkg.version) ?? pickFixedVersion(fixedForPkg, pkg.version);
+        if (fixedForThis) perAdvisoryFixed.push(fixedForThis);
+        summaryLine = `${id}: ${summary}${fixedForThis ? ` (fixed: ${fixedForThis})` : " (no fixed version published)"}`;
+      }
+      lines.push(summaryLine);
+      if (SEVERITY_RANK[severity] > SEVERITY_RANK[worstSeverity]) worstSeverity = severity;
+    }
+
+    const packageFixed =
+      perAdvisoryFixed.length > 0
+        ? perAdvisoryFixed.reduce((max, v) => (compareVersions(v, max) > 0 ? v : max))
+        : null;
+    findings.push({
+      id: "deps.known_cve",
+      check: "deps",
+      severity: worstSeverity,
+      title: `${pkg.name}@${pkg.version} has ${ids.length} known vulnerabilities (highest: ${worstSeverity})`,
+      detail: lines.join("\n"),
+      location: `${lockfileName}:${pkg.name}@${pkg.version}`,
+      fix: packageFixed
+        ? `Upgrade ${pkg.name} to ${packageFixed}.`
+        : `No fixed version has been published for ${pkg.name}'s known advisories. Track them and consider removing or replacing ${pkg.name} if exploitable in this app's context.`,
+    });
   }
   return findings;
 }
@@ -368,60 +547,68 @@ async function pathExists(p: string): Promise<boolean> {
   }
 }
 
-const depsCheck: Check = {
-  name: "deps",
-  description: "Checks lockfile-pinned dependency versions against OSV.dev for known CVEs, plus offline hygiene: unpinned deps, install scripts, and lockfile drift.",
-  requires: [],
-  async run(ctx: CheckContext): Promise<CheckResult> {
-    const repoDir = ctx.repoDir ?? ".";
-    const findings: Finding[] = [];
+/**
+ * Build the `deps` Check. `fetchImpl` defaults to the global `fetch` but is injectable
+ * so tests can supply fake OSV responses (querybatch + per-vuln lookups) with no network.
+ */
+export function createDepsCheck(fetchImpl: typeof fetch = fetch): Check {
+  return {
+    name: "deps",
+    description: "Checks lockfile-pinned dependency versions against OSV.dev for known CVEs, plus offline hygiene: unpinned deps, install scripts, and lockfile drift.",
+    requires: [],
+    async run(ctx: CheckContext): Promise<CheckResult> {
+      const repoDir = ctx.repoDir ?? ".";
+      const findings: Finding[] = [];
 
-    let pkgJson: PackageJsonShape = {};
-    try {
-      const raw = await readFile(join(repoDir, "package.json"), "utf8");
-      pkgJson = JSON.parse(raw);
-    } catch {
-      return {
-        check: "deps",
-        ran: false,
-        skippedReason: "no package.json found in repoDir",
-        findings: [],
-      };
-    }
-
-    const { packages, found: lockfileFound } = await loadLockfile(repoDir, ctx.log);
-    const capped = dedupe(packages).slice(0, MAX_PACKAGES);
-
-    findings.push(...unpinnedFindings(pkgJson, lockfileFound));
-    if (lockfileFound) {
-      findings.push(...lockfileStaleFindings(pkgJson, capped));
-    }
-
-    const nodeModulesExists = await pathExists(join(repoDir, "node_modules"));
-    if (nodeModulesExists) {
-      findings.push(...(await installScriptFindings(repoDir, pkgJson)));
-    }
-
-    if (ctx.allowOsv === false) {
-      ctx.log("deps: OSV lookup skipped (allowOsv=false)");
-    } else if (capped.length > 0) {
-      const osvFindings = await queryOsv(capped, ctx.log);
-      if (osvFindings === null) {
-        findings.push({
-          id: "deps.osv_unavailable",
+      let pkgJson: PackageJsonShape = {};
+      try {
+        const raw = await readFile(join(repoDir, "package.json"), "utf8");
+        pkgJson = JSON.parse(raw);
+      } catch {
+        return {
           check: "deps",
-          severity: "info",
-          title: "OSV.dev CVE lookup unavailable",
-          detail: "The OSV.dev batch API could not be reached, so known-CVE checking was skipped for this run. Offline dependency hygiene checks still ran.",
-          fix: "Re-run keysnag with network access to check for known CVEs, or ignore if you intentionally run offline.",
-        });
-      } else {
-        findings.push(...osvFindings);
+          ran: false,
+          skippedReason: "no package.json found in repoDir",
+          findings: [],
+        };
       }
-    }
 
-    return { check: "deps", ran: true, findings };
-  },
-};
+      const { packages, found: lockfileFound, file: lockfileName } = await loadLockfile(repoDir, ctx.log);
+      const capped = dedupe(packages).slice(0, MAX_PACKAGES);
+
+      findings.push(...unpinnedFindings(pkgJson, lockfileFound));
+      if (lockfileFound) {
+        findings.push(...lockfileStaleFindings(pkgJson, capped));
+      }
+
+      const nodeModulesExists = await pathExists(join(repoDir, "node_modules"));
+      if (nodeModulesExists) {
+        findings.push(...(await installScriptFindings(repoDir, pkgJson)));
+      }
+
+      if (ctx.allowOsv === false) {
+        ctx.log("deps: OSV lookup skipped (allowOsv=false)");
+      } else if (capped.length > 0) {
+        const osvFindings = await queryOsv(capped, lockfileName, fetchImpl, ctx.log);
+        if (osvFindings === null) {
+          findings.push({
+            id: "deps.osv_unavailable",
+            check: "deps",
+            severity: "info",
+            title: "OSV.dev CVE lookup unavailable",
+            detail: "The OSV.dev batch API could not be reached, so known-CVE checking was skipped for this run. Offline dependency hygiene checks still ran.",
+            fix: "Re-run keysnag with network access to check for known CVEs, or ignore if you intentionally run offline.",
+          });
+        } else {
+          findings.push(...osvFindings);
+        }
+      }
+
+      return { check: "deps", ran: true, findings };
+    },
+  };
+}
+
+const depsCheck: Check = createDepsCheck();
 
 export default depsCheck;

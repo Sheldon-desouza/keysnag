@@ -99,6 +99,40 @@ test("admin_route_no_role_check fires even when the only admin/role mention is i
   assert.ok(hit, "expected authz.admin_route_no_role_check on safe-comment-mention/app/api/admin/x/route.ts");
 });
 
+// LEDGER item 13c: the bare word "admin" in an import path (@/lib/admin-utils) or
+// the route path itself is not a role check. Must still fire, at the exported
+// handler's line, not always :1.
+test("admin_route_no_role_check fires when the only 'admin' mention is the import path, at the handler line", async () => {
+  const findings = await runAuthz();
+  const hit = findings.find(
+    (f) => f.id === "authz.admin_route_no_role_check" && f.location?.includes("bad-admin-import-only/"),
+  );
+  assert.ok(hit, "expected authz.admin_route_no_role_check on bad-admin-import-only/app/api/admin/dashboard/route.ts");
+  assert.equal(
+    hit!.location,
+    "bad-admin-import-only/app/api/admin/dashboard/route.ts:10",
+    "location must be the line of the exported GET handler",
+  );
+});
+
+// LEDGER item 13d: requireRole('editor') is not an operator gate.
+test("client_supplied_identity fires under requireRole('editor')", async () => {
+  const findings = await runAuthz();
+  const hit = findings.find(
+    (f) => f.id === "authz.client_supplied_identity" && f.location?.includes("bad-client-identity-editor-role/"),
+  );
+  assert.ok(hit, "expected authz.client_supplied_identity on bad-client-identity-editor-role, requireRole('editor') is not an operator gate");
+});
+
+// LEDGER item 13d: requireRole('admin') IS an operator gate.
+test("client_supplied_identity does not fire under requireRole('admin')", async () => {
+  const findings = await runAuthz();
+  const hits = findings.filter(
+    (f) => f.id === "authz.client_supplied_identity" && f.location?.includes("safe-client-identity-admin-role/"),
+  );
+  assert.deepEqual(hits, [], "requireRole('admin') is an operator gate for a client-supplied identity");
+});
+
 test("skips cleanly on an empty directory with no matching routes", async () => {
   const dir = mkdtempSync(join(tmpdir(), "keysnag-authz-empty-"));
   try {

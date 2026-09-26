@@ -106,6 +106,43 @@ test("uninstall removes a keysnag hook with nothing to chain", () => {
   }
 });
 
+test("install adds keysnag's report files to .gitignore once, across two installs", () => {
+  const repo = makeTmpRepo();
+  try {
+    execFileSync("node", [CLI, "install", "--repo", repo], { encoding: "utf8" });
+    const gitignorePath = join(repo, ".gitignore");
+    assert.ok(existsSync(gitignorePath), ".gitignore should be created");
+    const first = readFileSync(gitignorePath, "utf8");
+    assert.match(first, /^keysnag\.report\.md$/m);
+    assert.match(first, /^keysnag\.report\.json$/m);
+
+    execFileSync("node", [CLI, "install", "--repo", repo], { encoding: "utf8" });
+    const second = readFileSync(gitignorePath, "utf8");
+    assert.equal(
+      (second.match(/keysnag\.report\.md/g) ?? []).length,
+      1,
+      "the line should appear exactly once across two installs",
+    );
+    assert.equal((second.match(/keysnag\.report\.json/g) ?? []).length, 1);
+  } finally {
+    rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test("install preserves an existing .gitignore's content when appending", () => {
+  const repo = makeTmpRepo();
+  try {
+    writeFileSync(join(repo, ".gitignore"), "node_modules\n", "utf8");
+    execFileSync("node", [CLI, "install", "--repo", repo], { encoding: "utf8" });
+    const content = readFileSync(join(repo, ".gitignore"), "utf8");
+    assert.match(content, /^node_modules$/m);
+    assert.match(content, /^keysnag\.report\.md$/m);
+    assert.match(content, /^keysnag\.report\.json$/m);
+  } finally {
+    rmSync(repo, { recursive: true, force: true });
+  }
+});
+
 test("install --pre-commit also writes a pre-commit hook", () => {
   const repo = makeTmpRepo();
   try {

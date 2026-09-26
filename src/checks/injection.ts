@@ -175,10 +175,19 @@ interface RawFinding {
   fix: string;
 }
 
-function scanText(text: string): RawFinding[] {
+/** Spec 11E/13e: a file under a /components/ directory is a UI component, same-origin
+ * risk shape as "use client", not a server-side SSRF surface, whether or not it
+ * happens to carry the "use client" directive. */
+function isComponentPath(relPath: string): boolean {
+  return relPath.replace(/\\/g, "/").toLowerCase().includes("/components/");
+}
+
+function scanText(text: string, relPath: string): RawFinding[] {
   const lines = text.split("\n");
   const found: RawFinding[] = [];
-  const isUseClientFile = hasUseClientDirective(text);
+  // "use client" components and anything under /components/ are same-origin UI
+  // surfaces for the ssrf rule (spec 11E/13e), not the server-side check's target.
+  const isUseClientFile = hasUseClientDirective(text) || isComponentPath(relPath);
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
@@ -399,7 +408,7 @@ async function scanRepo(repoDir: string, changedFiles: string[] | undefined, log
     }
     if (text.includes("\u0000")) continue;
 
-    for (const raw of scanText(text)) {
+    for (const raw of scanText(text, relPath)) {
       const key = `${raw.id}|${relPath}|${raw.line}`;
       if (seen.has(key)) continue;
       seen.add(key);

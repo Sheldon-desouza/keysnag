@@ -8,6 +8,7 @@ import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import backdoorCheck from "../src/checks/backdoor.js";
+import { renderMarkdown } from "../src/report.js";
 import type { CheckContext, Finding } from "../src/types.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -41,6 +42,28 @@ test("finds a hardcoded password literal bypass as critical", async () => {
   );
   assert.ok(hit);
   assert.equal(hit?.severity, "critical");
+});
+
+test("LEDGER 13a: the raw hardcoded password never appears in any finding field, or in the rendered markdown report", async () => {
+  const RAW_PASSWORD = "letmein123"; // the literal seeded in fixture/backdoor/literal_bypass.ts
+  const findings = await runBackdoor();
+  const hit = findings.find((f) => f.id === "backdoor.literal_bypass" && f.location?.includes("literal_bypass.ts"));
+  assert.ok(hit);
+  assert.ok(!hit!.title.includes(RAW_PASSWORD), "title must not echo the raw password");
+  assert.ok(!hit!.detail.includes(RAW_PASSWORD), "detail must not echo the raw password");
+  assert.ok(!(hit!.evidence ?? "").includes(RAW_PASSWORD), "evidence must not echo the raw password");
+  assert.ok(!hit!.fix.includes(RAW_PASSWORD), "fix must not echo the raw password");
+  assert.ok(hit!.detail.toLowerCase().includes("password") || hit!.detail.toLowerCase().includes("secret"),
+    "detail should still say a password/secret is compared to a hardcoded literal");
+
+  const report = renderMarkdown([{ check: "backdoor", ran: true, findings }]);
+  assert.ok(!report.includes(RAW_PASSWORD), "the whole rendered markdown report must never contain the raw password");
+});
+
+test("does not fire literal_bypass on typeof-guarded input validation or an empty-string check", async () => {
+  const findings = await runBackdoor();
+  const hits = findings.filter((f) => f.location?.includes("safe-typeof-literal.ts"));
+  assert.deepEqual(hits, [], "typeof apiKey === \"string\" and token === \"\" are not hardcoded bypasses");
 });
 
 test("does not fire literal_bypass on role-literal discriminated-union checks", async () => {

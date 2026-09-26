@@ -101,6 +101,7 @@ const SAFE_FILES = [
   "safe-innerhtml-literal.ts", // el.innerHTML = '<svg width="28">...</svg>' string literal
   "safe-playwright-eval.ts", // page.$eval/$$eval/.evaluate(, not the eval() builtin
   "docs-example.md", // markdown containing eval(req.body); markdown is skipped entirely
+  "src/components/link-preview-widget.tsx", // LEDGER 13e: /components/ path, fetch(userUrl) is not SSRF
 ];
 
 test("calibration fixtures trip no injection rule", async () => {

@@ -261,6 +261,23 @@ exit $STATUS
 `;
 }
 
+const GITIGNORE_LINES = ["keysnag.report.md", "keysnag.report.json"];
+
+/** Ensures the repo's .gitignore lists keysnag's own report files, so `keysnag install` (and every
+ * hook run) never leaves an untracked report sitting in the working tree waiting for a stray
+ * `git add .` to commit it. Appends idempotently; creates .gitignore if missing; preserves content. */
+function ensureGitignore(repoDir: string): void {
+  const gitignorePath = join(repoDir, ".gitignore");
+  const existing = existsSync(gitignorePath) ? readFileSync(gitignorePath, "utf8") : "";
+  const existingLines = new Set(existing.split("\n").map((l) => l.trim()));
+
+  const missing = GITIGNORE_LINES.filter((line) => !existingLines.has(line));
+  if (missing.length === 0) return;
+
+  const prefix = existing.length > 0 && !existing.endsWith("\n") ? "\n" : "";
+  writeFileSync(gitignorePath, `${existing}${prefix}${missing.join("\n")}\n`, "utf8");
+}
+
 /** Writes a hook, chaining any pre-existing non-keysnag hook by renaming it to <name>.keysnag-prev. Idempotent. */
 function installHook(hooksDir: string, name: "pre-push" | "pre-commit"): void {
   const hookPath = join(hooksDir, name);
@@ -310,6 +327,9 @@ async function runInstall(flags: ParsedFlags): Promise<void> {
     installHook(hooksDir, "pre-commit");
     console.log(`keysnag: installed pre-commit hook at ${join(hooksDir, "pre-commit")}`);
   }
+
+  ensureGitignore(repoDir);
+  console.log(`keysnag: ensured ${join(repoDir, ".gitignore")} ignores keysnag.report.md/.json`);
 
   process.exit(0);
 }

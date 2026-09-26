@@ -92,7 +92,9 @@ push from Cursor, VS Code's terminal, a bare terminal, or CI, because it's a
 plain git hook, not an editor extension). Live checks (`rls`, `twoaccount`,
 `urlprobe`, `storage`) only run in the hook if their `.env` inputs are
 present, and never block on a network failure. If a hook is already
-installed, keysnag chains it rather than overwriting it.
+installed, keysnag chains it rather than overwriting it. Install also adds
+`keysnag.report.md` and `keysnag.report.json` to `.gitignore` (creating it if
+missing) so the report the hook writes never gets swept up in a `git add .`.
 
 ```bash
 keysnag install --pre-commit
@@ -193,10 +195,15 @@ Add an `allow` array to `keysnag.config.json`:
 ```
 
 - `id` matches a finding if it equals the finding's id, or is a prefix of it
-  (e.g. `"secret."` matches `secret.stripe_key`).
+  (e.g. `"secret."` matches `secret.stripe_key`). It cannot be empty, and it
+  must be a concrete finding id (e.g. `secret.stripe_key`) or a dotted prefix
+  of at least one segment (e.g. `secret.`) — a bare check name is not
+  specific enough.
 - `location` matches the finding's `location` exactly, matches just the file part
   before the `:line`, or is a glob (`*` and `**` are supported, no extra
-  dependency).
+  dependency). A wide-open location (`"**"`, `"*"`, or missing) is only
+  allowed when `id` is a full concrete finding id, never a prefix — an
+  exception that names no specific finding cannot also match every file.
 - Both `reason` and `bound` are **mandatory and must be non-empty**. `reason` is
   why this is acceptable; `bound` is the actual compensating control, a rate
   limit, a quota, a plan gate, an auth check, or an explicit "no user data".

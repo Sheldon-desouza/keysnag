@@ -97,9 +97,46 @@ test("validateAllowList throws naming an entry missing reason and/or bound", () 
 });
 
 test("validateAllowList accepts entries with both reason and bound", () => {
-  const entries = validateAllowList([{ id: "a", location: "b", reason: "y", bound: "z" }]);
+  const entries = validateAllowList([{ id: "a.b", location: "c", reason: "y", bound: "z" }]);
   assert.equal(entries.length, 1);
   assert.equal(entries[0].reason, "y");
+});
+
+test("validateAllowList rejects an empty id", () => {
+  assert.throws(
+    () => validateAllowList([{ id: "", location: "src/foo.ts", reason: "y", bound: "z" }]),
+    /empty id/,
+  );
+});
+
+test("validateAllowList rejects an id that is not a concrete id or dotted prefix", () => {
+  assert.throws(
+    () => validateAllowList([{ id: "x", location: "src/foo.ts", reason: "y", bound: "z" }]),
+    /malformed id/,
+  );
+});
+
+test("validateAllowList rejects a wide-open location paired with a prefix-only id", () => {
+  assert.throws(
+    () => validateAllowList([{ id: "secret.", location: "**", reason: "y", bound: "z" }]),
+    /wide-open location/,
+  );
+  assert.throws(
+    () => validateAllowList([{ id: "secret.", location: "*", reason: "y", bound: "z" }]),
+    /wide-open location/,
+  );
+  assert.throws(
+    () => validateAllowList([{ id: "secret.", location: "", reason: "y", bound: "z" }]),
+    /wide-open location/,
+  );
+});
+
+test("validateAllowList accepts a wide-open location when the id is a full concrete finding id", () => {
+  const entries = validateAllowList([
+    { id: "secret.stripe_key", location: "**", reason: "y", bound: "z" },
+  ]);
+  assert.equal(entries.length, 1);
+  assert.equal(entries[0].location, "**");
 });
 
 test("loadAllowList throws naming the bad entry when config.json has an invalid allow array", () => {

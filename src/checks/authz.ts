@@ -50,7 +50,27 @@ const IDENTITY_KEYS = ["userId", "user_id", "ownerId", "owner_id", "accountId"];
 
 const QUERY_FILTER_RE = /\.eq\(|where\s*\(|WHERE\s/i;
 
-const ADMIN_ROLE_CHECK_RE = /\brole\b|\badmin\b|isAdmin|is_admin|requireAdmin|requireRole|assertAdmin|checkAdmin/i;
+// (C4/precision calibration, ledger item 13c) the bare word "admin" (an import path
+// like @/lib/admin-utils, or the route path itself) is not a role check: require an
+// actual check call or comparison. The named helpers (requireAdmin(, checkAdmin(, ...)
+// are covered, plus any other identifier that carries "admin"/"role" AND is invoked as
+// a function (e.g. checkAdminEmail(user.email), a real check dogfooded on a production app) so
+// this doesn't regress into re-matching a bare, uncalled mention.
+const ADMIN_ROLE_CHECK_RE =
+  /requireAdmin\(|assertAdmin\(|checkAdmin\(|isAdmin\(|is_admin\(|requireRole\(|\b\w*admin\w*\s*\(|\.role\s*(?:===|!==|==|!=)|role\s*(?:===|==)\s*["']/i;
+
+const EXPORT_ROUTE_FN_RE = /^\s*export\s+(?:async\s+)?function\s+(?:GET|POST|PUT|PATCH|DELETE)\b/;
+
+/** Location for admin_route_no_role_check: the line of the first exported route
+ * handler function, per ledger item 13c, so the finding points at the handler
+ * instead of always :1. */
+function firstExportedRouteFnLine(text: string): number {
+  const lines = text.split("\n");
+  for (let i = 0; i < lines.length; i++) {
+    if (EXPORT_ROUTE_FN_RE.test(lines[i])) return i + 1;
+  }
+  return 1;
+}
 
 /**
  * Strip // and /* *\/ comments so signal-matching (auth/role/data-access/identity)
@@ -192,14 +212,27 @@ function checkRouteWithoutAuth(
 }
 
 // A strict admin/role gate is a pattern that does NOT count as a generic auth signal here.
-const OPERATOR_GATE_RE = /requireAdmin|requireRole|assertAdmin|checkAdmin|isAdmin\s*\(|is_admin\s*\(/;
+const OPERATOR_GATE_RE = /requireAdmin|assertAdmin|checkAdmin|isAdmin\s*\(|is_admin\s*\(/;
+
+// (ledger item 13d) requireRole('editor') is not an operator gate: only requireRole(...)
+// whose argument names an operator-shaped role counts.
+const REQUIRE_ROLE_CALL_RE = /requireRole\s*\(\s*["'`]([^"'`]+)["'`]/g;
+const OPERATOR_ROLE_NAME_RE = /admin|owner|operator|superuser|staff/i;
+
+function hasOperatorGate(text: string): boolean {
+  if (OPERATOR_GATE_RE.test(text)) return true;
+  for (const m of text.matchAll(REQUIRE_ROLE_CALL_RE)) {
+    if (OPERATOR_ROLE_NAME_RE.test(m[1])) return true;
+  }
+  return false;
+}
 
 function checkClientSuppliedIdentity(relPath: string, text: string): Finding | null {
   if (!QUERY_FILTER_RE.test(text)) return null;
   // An operator route (requireAdmin etc.) acting on another user's row by an explicit id is the
   // legitimate use of a client-supplied identity: the risk this rule targets is an ordinary user
   // impersonating another, and an admin gate removes that caller. Calibrated on a real repo.
-  if (OPERATOR_GATE_RE.test(text)) return null;
+  if (hasOperatorGate(text)) return null;
   for (const key of IDENTITY_KEYS) {
     const readRe = new RegExp(
       `body\\.${key}\\b|body\\[["']${key}["']\\]|searchParams\\.get\\(["']${key}["']\\)|` +
@@ -237,7 +270,7 @@ function checkAdminRouteNoRoleCheck(relPath: string, routePath: string, text: st
     detail:
       `${routePath} is an admin route but the handler never checks role/isAdmin/is_admin. Any ` +
       "authenticated (or unauthenticated) caller who reaches this path can use admin functionality.",
-    location: `${relPath}:1`,
+    location: `${relPath}:${firstExportedRouteFnLine(text)}`,
     fix: "Look up the caller's role (e.g. a role/is_admin column or claim) after verifying their session, and return 403 unless it grants admin access.",
   };
 }

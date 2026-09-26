@@ -7,6 +7,7 @@ import { join, relative, extname } from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import type { Check, CheckContext, CheckResult, Finding } from "../types.js";
+import { maskSecret } from "../types.js";
 
 const pexec = promisify(execFile);
 
@@ -78,7 +79,13 @@ const OBFUSCATED_EVAL = /\b(?:eval|new\s+Function|Function)\s*\(\s*atob\(\s*["'`
 // (B) calibration fix: role-literal comparisons (m.role === 'user', c.role === 'performance')
 // are legitimate discriminated-union/enum checks, not backdoors. Fire only on an actual
 // credential-shaped identifier compared to a string literal.
-const LITERAL_BYPASS = /\b(password|passwd|pin|secret|masterKey|apiKey)\b\s*(?:===|==|!==|!=)\s*["'`]([^"'`]+)["'`]/i;
+const LITERAL_BYPASS = /\b(password|passwd|pin|secret|masterKey|apiKey)\b\s*(?:===|==|!==|!=)\s*["'`]([^"'`]*)["'`]/i;
+
+// (C4/precision calibration) `typeof x === "string"` and other typeof-guarded input
+// validation idioms are not backdoors: the "literal" is a JS type name, not a
+// credential. Same for an empty-string comparison (`token === ""`), which is a
+// not-set check, not a hardcoded bypass.
+const JS_TYPE_NAME = /^(?:string|number|boolean|undefined|object|function|symbol|bigint)$/i;
 
 const AUTH_SKIP_IDENT = /\b(SKIP_AUTH|BYPASS_AUTH|DISABLE_AUTH|NO_AUTH)\b/;
 const AUTH_SKIP_USAGE = new RegExp(
@@ -198,15 +205,23 @@ const check: Check = {
         const literalMatch = line.match(LITERAL_BYPASS);
         if (literalMatch) {
           const ident = literalMatch[1];
-          findings.push({
-            id: "backdoor.literal_bypass",
-            check: "backdoor",
-            severity: "critical",
-            title: `Hardcoded bypass comparing ${ident} to a string literal`,
-            detail: `This line grants or denies access by comparing "${ident}" to a hardcoded string literal ("${literalMatch[2]}"). This is a classic hidden backdoor or master-password pattern: anyone who reads the source (or the compiled bundle) can bypass real authentication.`,
-            location: loc,
-            fix: "Remove the literal comparison and check against a real credential store, session, or role table instead of a string baked into source.",
-          });
+          const literal = literalMatch[2];
+          const before = line.slice(0, literalMatch.index ?? 0);
+          const isTypeofCheck = /\btypeof\s*$/.test(before);
+          const isTypeName = JS_TYPE_NAME.test(literal);
+          if (!isTypeofCheck && !isTypeName && literal !== "") {
+            findings.push({
+              id: "backdoor.literal_bypass",
+              check: "backdoor",
+              severity: "critical",
+              title: `Hardcoded bypass comparing ${ident} to a string literal`,
+              // C4: never put the raw hardcoded literal in any Finding field. Mask it.
+              detail: `This line grants or denies access by comparing "${ident}" to a hardcoded string literal: a password/secret is compared to a hardcoded literal instead of a real credential store. This is a classic hidden backdoor or master-password pattern: anyone who reads the source (or the compiled bundle) can bypass real authentication.`,
+              location: loc,
+              evidence: maskSecret(literal),
+              fix: "Remove the literal comparison and check against a real credential store, session, or role table instead of a string baked into source.",
+            });
+          }
         }
 
         if (AUTH_SKIP_USAGE.test(line)) {

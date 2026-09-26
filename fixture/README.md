@@ -50,7 +50,7 @@ value). Every schema flaw and every route is a known, seeded vulnerability.
 
 | Flaw | Where | Expected id | Severity |
 |---|---|---|---|
-| Dependency pinned to a known-vulnerable version (needs a live OSV.dev lookup; not exercised offline) | `fixture/deps/package.json` + `fixture/deps/package-lock.json` | `deps.known_cve` | critical/high/medium per CVSS |
+| Dependency pinned to a known-vulnerable version (unit-tested with an injected fake OSV response; a live OSV.dev lookup runs when network is allowed) | `fixture/deps/package.json` + `fixture/deps/package-lock.json` | `deps.known_cve` | critical/high/medium per CVSS |
 | Dependency declared as `"latest"`/`"*"` or with no lockfile | `fixture/deps/package.json` | `deps.unpinned` | medium |
 | Dependency with a `preinstall`/`postinstall` lifecycle script | `fixture/deps/package.json` (with `node_modules` present) | `deps.install_script` | medium |
 | `package.json` dependency missing from the lockfile | `fixture/deps/package.json` vs `fixture/deps/package-lock.json` | `deps.lockfile_stale` | low |

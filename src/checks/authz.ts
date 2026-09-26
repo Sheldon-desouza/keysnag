@@ -56,8 +56,11 @@ const QUERY_FILTER_RE = /\.eq\(|where\s*\(|WHERE\s/i;
 // are covered, plus any other identifier that carries "admin"/"role" AND is invoked as
 // a function (e.g. checkAdminEmail(user.email), a real check dogfooded on a production app) so
 // this doesn't regress into re-matching a bare, uncalled mention.
+// Verify cycle 2: `\w*admin\w*\(` also matched `createAdminClient()` (a service
+// client, not a gate), silencing the rule on a route that only checked login. An
+// admin-named call counts only when it starts with a CHECK verb.
 const ADMIN_ROLE_CHECK_RE =
-  /requireAdmin\(|assertAdmin\(|checkAdmin\(|isAdmin\(|is_admin\(|requireRole\(|\b\w*admin\w*\s*\(|\.role\s*(?:===|!==|==|!=)|role\s*(?:===|==)\s*["']/i;
+  /requireAdmin\(|assertAdmin\(|checkAdmin\(|isAdmin\(|is_admin\(|requireRole\(|\b(?:check|require|assert|ensure|verify|is|has|guard|validate)\w*admin\w*\s*\(|\.role\s*(?:===|!==|==|!=)|role\s*(?:===|==)\s*["']/i;
 
 const EXPORT_ROUTE_FN_RE = /^\s*export\s+(?:async\s+)?function\s+(?:GET|POST|PUT|PATCH|DELETE)\b/;
 

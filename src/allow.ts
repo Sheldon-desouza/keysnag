@@ -51,7 +51,9 @@ function isDottedPrefix(id: string): boolean {
 }
 
 function isWideOpenLocation(location: string): boolean {
-  return location === "**" || location === "*" || location === "";
+  // Verify cycle 2: "**/*", "**/**", "*/**", "./**" are catch-alls too. A location is
+  // wide open when it contains no literal path segment at all.
+  return /^[\s*./\\]*$/.test(location);
 }
 
 /** Validates a raw allow array. Throws naming every entry that is missing a non-empty reason

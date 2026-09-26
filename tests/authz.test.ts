@@ -150,3 +150,11 @@ test("an admin-gated operator route acting on another user's id does NOT trip cl
   const hit = res.findings.find((f) => f.id === "authz.client_supplied_identity");
   assert.equal(hit, undefined, `should not fire on an admin-gated route: ${JSON.stringify(res.findings.map((f) => f.id))}`);
 });
+
+test("createAdminClient() is a service client, not a role check: /api/admin route with only getUser MUST fire admin_route_no_role_check (verify cycle 2)", async () => {
+  const authz = (await import("../src/checks/authz.js")).default;
+  const res = await authz.run({ repoDir: "./fixture/authz/bad-admin-service-client", log: () => {} });
+  const hit = res.findings.find((f) => f.id === "authz.admin_route_no_role_check");
+  assert.ok(hit, `expected admin_route_no_role_check, got ${JSON.stringify(res.findings.map((f) => f.id))}`);
+  assert.match(hit!.location ?? "", /route\.ts:7$/, "location should be the exported handler line");
+});

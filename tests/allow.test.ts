@@ -238,3 +238,16 @@ test("the `allow` CLI helper refuses (exits non-zero, no write) when --reason or
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test("catch-all globs like **/* and */** are rejected with a prefix-only id (verify cycle 2)", async () => {
+  const { validateAllowList } = await import("../src/allow.js");
+  for (const location of ["**/*", "**/**", "*/**", "./**", " ** "]) {
+    assert.throws(
+      () => validateAllowList([{ id: "secret.", location, reason: "r", bound: "b" }]),
+      /wide-open/i,
+      `expected rejection for location ${JSON.stringify(location)}`,
+    );
+  }
+  // a real directory scope with a literal segment is still allowed
+  assert.doesNotThrow(() => validateAllowList([{ id: "secret.", location: "src/**", reason: "r", bound: "b" }]));
+});

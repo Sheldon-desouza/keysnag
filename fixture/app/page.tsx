@@ -7,7 +7,7 @@
 const STRIPE_SECRET_KEY = "sk_test_abcdEFGH12345678ijkl";
 
 // Fake OpenAI key (sk- + 40 chars) — never a live key.
-const OPENAI_API_KEY = "sk-ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcd";
+const OPENAI_API_KEY = "sk-FAKEfixtureKeyNotRealAbc123Xyz";
 
 export default function Home() {
   return (

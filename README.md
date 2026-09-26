@@ -87,6 +87,10 @@ Any check whose inputs are missing is skipped and the report tells you exactly w
 
 ## What it checks
 
+<p align="center">
+  <img src="docs/assets/checks.svg" alt="The 12 keysnag checks at a glance: secrets, config, authz, injection, payments, backdoor, ai-endpoints, deps, urlprobe, rls, storage, twoaccount." width="100%">
+</p>
+
 12 checks, grouped by what they need. "Blocks a push?" reflects the default gate (`--fail-on critical`): only critical findings stop a push; everything else is reported and left for you.
 
 ### Repo / static (no inputs beyond the code itself)

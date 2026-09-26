@@ -1,55 +1,102 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="420" viewBox="0 0 1200 420" role="img" aria-label="keysnag: cybersecurity for AI founders and vibe coders. The pre-push security gate for apps built with Claude Code, Cursor, Lovable and Bolt.">
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="480" viewBox="0 0 1200 480" role="img" aria-label="keysnag: cybersecurity for AI founders and vibe coders. A pre-push security gate that blocks a push when it finds a leaked key, missing RLS or a cross-account data leak.">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#0b1220"/>
-      <stop offset="1" stop-color="#101c33"/>
+      <stop offset="0" stop-color="#0a1020"/>
+      <stop offset="1" stop-color="#0f1d3a"/>
     </linearGradient>
     <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
       <stop offset="0" stop-color="#22d3ee"/>
       <stop offset="1" stop-color="#a3e635"/>
     </linearGradient>
-    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-      <feGaussianBlur stdDeviation="18" result="b"/>
-      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
-    </filter>
-    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-      <path d="M40 0H0V40" fill="none" stroke="#1e2a44" stroke-width="1"/>
+    <radialGradient id="glowCyan" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#22d3ee" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#22d3ee" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glowLime" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#a3e635" stop-opacity="0.25"/>
+      <stop offset="1" stop-color="#a3e635" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="grid" width="36" height="36" patternUnits="userSpaceOnUse">
+      <path d="M36 0H0V36" fill="none" stroke="#182541" stroke-width="1"/>
     </pattern>
+    <clipPath id="card"><rect x="672" y="56" width="472" height="368" rx="18"/></clipPath>
   </defs>
-  <rect width="1200" height="420" rx="24" fill="url(#bg)"/>
-  <rect width="1200" height="420" rx="24" fill="url(#grid)" opacity="0.6"/>
-  <circle cx="1010" cy="120" r="150" fill="#22d3ee" opacity="0.08" filter="url(#glow)"/>
-  <circle cx="1090" cy="330" r="110" fill="#a3e635" opacity="0.08" filter="url(#glow)"/>
 
-  <!-- key + snag mark -->
-  <g transform="translate(72,96)">
-    <rect x="0" y="0" width="120" height="120" rx="28" fill="#111c31" stroke="#22d3ee" stroke-width="2"/>
-    <g transform="translate(24,26)" fill="none" stroke="url(#accent)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round">
-      <circle cx="22" cy="24" r="16"/>
-      <path d="M34 36 L70 72 M56 58 L64 50 M64 66 L72 58"/>
+  <rect width="1200" height="480" rx="26" fill="url(#bg)"/>
+  <rect width="1200" height="480" rx="26" fill="url(#grid)" opacity="0.55"/>
+  <circle cx="300" cy="120" r="260" fill="url(#glowCyan)"/>
+  <circle cx="1000" cy="420" r="240" fill="url(#glowLime)"/>
+
+  <!-- mark -->
+  <g transform="translate(64,68)">
+    <rect width="92" height="92" rx="22" fill="#0e1830" stroke="#22d3ee" stroke-width="2"/>
+    <g transform="translate(20,20)" fill="none" stroke="url(#accent)" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="16" cy="18" r="12"/>
+      <path d="M25 27 L52 54 M42 44 L48 38 M48 50 L54 44"/>
     </g>
-    <path d="M18 104 Q60 118 102 104" fill="none" stroke="#a3e635" stroke-width="4" stroke-linecap="round" opacity="0.9"/>
+    <path d="M16 78 Q46 90 76 78" fill="none" stroke="#a3e635" stroke-width="3.5" stroke-linecap="round"/>
   </g>
 
-  <text x="230" y="150" font-family="ui-sans-serif, -apple-system, Segoe UI, Inter, Roboto, Helvetica, Arial, sans-serif" font-size="64" font-weight="800" fill="#f8fafc" letter-spacing="-1.5">keysnag</text>
-  <text x="230" y="200" font-family="ui-sans-serif, -apple-system, Segoe UI, Inter, Roboto, Helvetica, Arial, sans-serif" font-size="27" font-weight="600" fill="#cbd5e1">Cybersecurity for AI founders and vibe coders.</text>
-  <text x="230" y="238" font-family="ui-sans-serif, -apple-system, Segoe UI, Inter, Roboto, Helvetica, Arial, sans-serif" font-size="20" fill="#94a3b8">The pre-push security gate for apps built with Claude Code, Cursor, Lovable and Bolt.</text>
+  <g font-family="-apple-system, 'Segoe UI', Inter, Roboto, Helvetica, Arial, sans-serif">
+    <text x="176" y="132" font-size="66" font-weight="800" fill="#f8fafc" letter-spacing="-1.5">keysnag</text>
+    <text x="64" y="224" font-size="30" font-weight="700" fill="#e2e8f0">Cybersecurity for AI founders</text>
+    <text x="64" y="262" font-size="30" font-weight="700" fill="#e2e8f0">and vibe coders.</text>
+    <text x="64" y="304" font-size="18" fill="#94a3b8">The pre-push security gate for apps built with</text>
+    <text x="64" y="330" font-size="18" fill="#94a3b8">Claude Code, Cursor, Codex, Lovable and Bolt.</text>
 
-  <!-- stat pills -->
-  <g font-family="ui-sans-serif, -apple-system, Segoe UI, Inter, Roboto, Helvetica, Arial, sans-serif" font-size="16" font-weight="600">
-    <g transform="translate(230,282)">
-      <rect width="196" height="44" rx="22" fill="#0f1b30" stroke="#22d3ee" stroke-opacity="0.6"/>
-      <text x="98" y="28" text-anchor="middle" fill="#e2e8f0">12 checks, offline</text>
-    </g>
-    <g transform="translate(440,282)">
-      <rect width="236" height="44" rx="22" fill="#0f1b30" stroke="#a3e635" stroke-opacity="0.6"/>
-      <text x="118" y="28" text-anchor="middle" fill="#e2e8f0">Blocks the push on critical</text>
-    </g>
-    <g transform="translate(690,282)">
-      <rect width="250" height="44" rx="22" fill="#0f1b30" stroke="#f472b6" stroke-opacity="0.6"/>
-      <text x="125" y="28" text-anchor="middle" fill="#e2e8f0">Never prints a secret</text>
+    <!-- proof points -->
+    <g font-size="14.5" font-weight="600" fill="#cbd5e1">
+      <g transform="translate(64,362)">
+        <circle cx="8" cy="8" r="8" fill="#22d3ee"/><path d="M4.5 8.5 L7 11 L11.5 5.5" fill="none" stroke="#0a1020" stroke-width="2" stroke-linecap="round"/>
+        <text x="24" y="13">12 checks, under 10 seconds</text>
+      </g>
+      <g transform="translate(64,392)">
+        <circle cx="8" cy="8" r="8" fill="#22d3ee"/><path d="M4.5 8.5 L7 11 L11.5 5.5" fill="none" stroke="#0a1020" stroke-width="2" stroke-linecap="round"/>
+        <text x="24" y="13">Nothing leaves your machine</text>
+      </g>
+      <g transform="translate(64,422)">
+        <circle cx="8" cy="8" r="8" fill="#22d3ee"/><path d="M4.5 8.5 L7 11 L11.5 5.5" fill="none" stroke="#0a1020" stroke-width="2" stroke-linecap="round"/>
+        <text x="24" y="13">Blocks the push only on critical</text>
+      </g>
+      <g transform="translate(360,362)">
+        <circle cx="8" cy="8" r="8" fill="#a3e635"/><path d="M4.5 8.5 L7 11 L11.5 5.5" fill="none" stroke="#0a1020" stroke-width="2" stroke-linecap="round"/>
+        <text x="24" y="13">Free and open source (MIT)</text>
+      </g>
+      <g transform="translate(360,392)">
+        <circle cx="8" cy="8" r="8" fill="#a3e635"/><path d="M4.5 8.5 L7 11 L11.5 5.5" fill="none" stroke="#0a1020" stroke-width="2" stroke-linecap="round"/>
+        <text x="24" y="13">Never prints a secret</text>
+      </g>
+      <g transform="translate(360,422)">
+        <circle cx="8" cy="8" r="8" fill="#a3e635"/><path d="M4.5 8.5 L7 11 L11.5 5.5" fill="none" stroke="#0a1020" stroke-width="2" stroke-linecap="round"/>
+        <text x="24" y="13">Git hook, Claude Code plugin, MCP</text>
+      </g>
     </g>
   </g>
 
-  <text x="230" y="372" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="17" fill="#67e8f9">$ keysnag install   # add the gate to any repo, works in Cursor, VS Code, terminal, CI</text>
+  <!-- terminal card: a blocked push, then a clean one -->
+  <g>
+    <rect x="672" y="56" width="472" height="368" rx="18" fill="#070c18" stroke="#1f2b47" stroke-width="1.5"/>
+    <g clip-path="url(#card)">
+      <rect x="672" y="56" width="472" height="38" fill="#0d1527"/>
+    </g>
+    <circle cx="694" cy="75" r="6" fill="#ff5f57"/><circle cx="714" cy="75" r="6" fill="#febc2e"/><circle cx="734" cy="75" r="6" fill="#28c840"/>
+    <text x="908" y="80" text-anchor="middle" font-family="-apple-system, 'Segoe UI', Inter, Roboto, Helvetica, Arial, sans-serif" font-size="12.5" fill="#64748b">your-app  ·  git push</text>
+
+    <g font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="13.5">
+      <text x="696" y="124" fill="#94a3b8">$ <tspan fill="#e2e8f0">git push origin main</tspan></text>
+      <text x="696" y="150" fill="#67e8f9">keysnag</text><text x="758" y="150" fill="#94a3b8">12 checks · 1,376 files · 6.8s</text>
+
+      <rect x="690" y="166" width="436" height="104" rx="10" fill="#2a1216" stroke="#7f1d1d"/>
+      <text x="704" y="190" fill="#fca5a5" font-weight="700">● CRITICAL</text><text x="800" y="190" fill="#fee2e2">Supabase service_role key found</text>
+      <text x="704" y="212" fill="#f1a5a5">lib/supabase.ts:10</text><text x="850" y="212" fill="#94a3b8">eyJh…9ckE (219 chars)</text>
+      <text x="704" y="234" fill="#94a3b8">fix:</text><text x="740" y="234" fill="#e2e8f0">rotate it, load it server-side only</text>
+      <text x="704" y="256" fill="#fca5a5" font-weight="700">keysnag blocked: 1 critical. Push declined.</text>
+
+      <text x="696" y="300" fill="#94a3b8">$ <tspan fill="#e2e8f0">git push origin main</tspan>   <tspan fill="#64748b"># after the fix</tspan></text>
+      <text x="696" y="326" fill="#67e8f9">keysnag</text><text x="758" y="326" fill="#94a3b8">12 checks · 1,376 files · 6.5s</text>
+      <rect x="690" y="342" width="436" height="58" rx="10" fill="#10261f" stroke="#365314"/>
+      <text x="704" y="366" fill="#bef264" font-weight="700">✓ no critical findings</text><text x="900" y="366" fill="#a3e635">push accepted</text>
+      <text x="704" y="388" fill="#94a3b8">10 advisories saved to keysnag.report.md</text>
+    </g>
+  </g>
 </svg>

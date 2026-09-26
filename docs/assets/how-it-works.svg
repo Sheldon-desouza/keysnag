@@ -1,72 +1,75 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="360" viewBox="0 0 1200 360" role="img" aria-label="How keysnag works: your AI coding agent writes code, you push, keysnag runs 12 checks in seconds, a critical finding blocks the push and is fed back to the agent to fix, clean code reaches main.">
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="340" viewBox="0 0 1200 340" role="img" aria-label="How keysnag works in four steps: your AI agent writes code, you push, the keysnag gate runs 12 checks, a critical finding blocks the push and is sent back to the agent to fix, clean code reaches main and production.">
   <defs>
     <linearGradient id="bg2" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#0b1220"/>
-      <stop offset="1" stop-color="#101c33"/>
+      <stop offset="0" stop-color="#0a1020"/>
+      <stop offset="1" stop-color="#0f1d3a"/>
     </linearGradient>
-    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
-      <path d="M0 0 L10 5 L0 10 z" fill="#64748b"/>
-    </marker>
-    <marker id="arrowRed" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
-      <path d="M0 0 L10 5 L0 10 z" fill="#f87171"/>
-    </marker>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#64748b"/></marker>
+    <marker id="arG" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#a3e635"/></marker>
+    <marker id="arR" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#f87171"/></marker>
   </defs>
-  <rect width="1200" height="360" rx="24" fill="url(#bg2)"/>
-  <g font-family="ui-sans-serif, -apple-system, Segoe UI, Inter, Roboto, Helvetica, Arial, sans-serif">
+  <rect width="1200" height="340" rx="26" fill="url(#bg2)"/>
 
-    <!-- 1. agents -->
-    <g transform="translate(40,90)">
-      <rect width="220" height="150" rx="18" fill="#111c31" stroke="#334155"/>
-      <text x="110" y="34" text-anchor="middle" font-size="14" font-weight="700" fill="#94a3b8">YOUR AI AGENT WRITES CODE</text>
-      <text x="110" y="70" text-anchor="middle" font-size="17" font-weight="600" fill="#e2e8f0">Claude Code · Cursor</text>
-      <text x="110" y="96" text-anchor="middle" font-size="17" font-weight="600" fill="#e2e8f0">Lovable · Bolt · Codex</text>
-      <text x="110" y="128" text-anchor="middle" font-size="14" fill="#94a3b8">then: git push</text>
+  <g font-family="-apple-system, 'Segoe UI', Inter, Roboto, Helvetica, Arial, sans-serif">
+
+    <!-- step 1 -->
+    <g transform="translate(48,96)">
+      <rect width="232" height="150" rx="18" fill="#0e1830" stroke="#243352" stroke-width="1.5"/>
+      <circle cx="30" cy="30" r="15" fill="#22d3ee"/><text x="30" y="35" text-anchor="middle" font-size="15" font-weight="800" fill="#0a1020">1</text>
+      <text x="56" y="35" font-size="15" font-weight="700" fill="#e2e8f0">Your agent writes code</text>
+      <text x="22" y="70" font-size="13.5" fill="#94a3b8">Claude Code · Cursor · Codex</text>
+      <text x="22" y="90" font-size="13.5" fill="#94a3b8">Lovable · Bolt · v0 · Replit</text>
+      <text x="22" y="124" font-size="13" fill="#64748b">Fast, and prone to the same</text>
+      <text x="22" y="140" font-size="13" fill="#64748b">security mistakes every time.</text>
     </g>
-    <line x1="262" y1="165" x2="316" y2="165" stroke="#64748b" stroke-width="3" marker-end="url(#arrow)"/>
+    <line x1="284" y1="171" x2="330" y2="171" stroke="#64748b" stroke-width="3" marker-end="url(#ar)"/>
 
-    <!-- 2. gate -->
-    <g transform="translate(320,50)">
-      <rect width="330" height="230" rx="20" fill="#0f1b30" stroke="#22d3ee" stroke-width="2"/>
-      <text x="165" y="36" text-anchor="middle" font-size="15" font-weight="800" fill="#67e8f9" letter-spacing="1">KEYSNAG PRE-PUSH GATE</text>
-      <text x="165" y="60" text-anchor="middle" font-size="13" fill="#94a3b8">12 deterministic checks, under 10 seconds, nothing leaves your machine</text>
-      <g font-size="13" fill="#e2e8f0">
-        <text x="28" y="96">• secrets in repo + shipped bundle</text>
-        <text x="28" y="118">• Supabase RLS + cross-account (IDOR)</text>
-        <text x="28" y="140">• auth on every route, admin gates</text>
-        <text x="28" y="162">• injection, SSRF, eval, shell</text>
-        <text x="28" y="184">• Stripe webhooks + client-priced charges</text>
-        <text x="28" y="206">• known CVEs, backdoors, AI-endpoint abuse</text>
+    <!-- step 2 -->
+    <g transform="translate(334,96)">
+      <rect width="176" height="150" rx="18" fill="#0e1830" stroke="#243352" stroke-width="1.5"/>
+      <circle cx="30" cy="30" r="15" fill="#22d3ee"/><text x="30" y="35" text-anchor="middle" font-size="15" font-weight="800" fill="#0a1020">2</text>
+      <text x="56" y="35" font-size="15" font-weight="700" fill="#e2e8f0">git push</text>
+      <text x="22" y="72" font-size="13.5" fill="#94a3b8">The pre-push hook</text>
+      <text x="22" y="92" font-size="13.5" fill="#94a3b8">fires. Any editor,</text>
+      <text x="22" y="112" font-size="13.5" fill="#94a3b8">terminal or CI.</text>
+    </g>
+    <line x1="514" y1="171" x2="560" y2="171" stroke="#64748b" stroke-width="3" marker-end="url(#ar)"/>
+
+    <!-- step 3: gate -->
+    <g transform="translate(564,80)">
+      <rect width="300" height="182" rx="18" fill="#0b1a33" stroke="#22d3ee" stroke-width="2"/>
+      <circle cx="30" cy="30" r="15" fill="#22d3ee"/><text x="30" y="35" text-anchor="middle" font-size="15" font-weight="800" fill="#0a1020">3</text>
+      <text x="56" y="35" font-size="15" font-weight="700" fill="#67e8f9">keysnag gate</text>
+      <text x="22" y="64" font-size="12.5" fill="#94a3b8">12 checks · under 10s · offline · masked</text>
+      <g font-size="12.5" fill="#e2e8f0">
+        <text x="22" y="90">secrets · RLS · cross-account</text>
+        <text x="22" y="110">auth on routes · injection · SSRF</text>
+        <text x="22" y="130">Stripe webhooks · known CVEs</text>
+        <text x="22" y="150">backdoors · AI-endpoint abuse</text>
+        <text x="22" y="170">headers · storage · cron secrets</text>
       </g>
     </g>
 
-    <!-- 3a. blocked -->
-    <line x1="652" y1="120" x2="716" y2="100" stroke="#f87171" stroke-width="3" marker-end="url(#arrowRed)"/>
-    <g transform="translate(720,40)">
-      <rect width="230" height="120" rx="18" fill="#2a1216" stroke="#f87171" stroke-width="2"/>
-      <text x="115" y="34" text-anchor="middle" font-size="14" font-weight="800" fill="#fca5a5">CRITICAL FOUND</text>
-      <text x="115" y="62" text-anchor="middle" font-size="15" font-weight="600" fill="#fee2e2">Push is blocked</text>
-      <text x="115" y="84" text-anchor="middle" font-size="12.5" fill="#fca5a5">file:line + a fix your agent can apply</text>
-      <text x="115" y="104" text-anchor="middle" font-size="12.5" fill="#fca5a5">Claude Code is woken to fix it</text>
-    </g>
-    <path d="M950 100 C 1010 100, 1010 40, 960 30 C 700 -10, 330 -10, 250 60" fill="none" stroke="#f87171" stroke-width="2" stroke-dasharray="6 6" marker-end="url(#arrowRed)" opacity="0.8"/>
-    <text x="600" y="22" text-anchor="middle" font-size="12.5" fill="#fca5a5">fix, then push again</text>
+    <!-- branch: critical -> blocked, loops back -->
+    <path d="M714 78 C 714 40, 600 18, 400 22 C 250 25, 180 40, 164 92" fill="none" stroke="#f87171" stroke-width="2.5" stroke-dasharray="7 6" marker-end="url(#arR)"/>
+    <rect x="430" y="6" width="340" height="30" rx="15" fill="#2a1216" stroke="#7f1d1d"/>
+    <text x="600" y="26" text-anchor="middle" font-size="13" font-weight="700" fill="#fca5a5">critical found: push blocked, fix sent back to the agent</text>
 
-    <!-- 3b. passed -->
-    <line x1="652" y1="210" x2="716" y2="230" stroke="#64748b" stroke-width="3" marker-end="url(#arrow)"/>
-    <g transform="translate(720,190)">
-      <rect width="230" height="120" rx="18" fill="#10261f" stroke="#a3e635" stroke-width="2"/>
-      <text x="115" y="34" text-anchor="middle" font-size="14" font-weight="800" fill="#bef264">NO CRITICAL FINDINGS</text>
-      <text x="115" y="62" text-anchor="middle" font-size="15" font-weight="600" fill="#ecfccb">Push goes through</text>
-      <text x="115" y="84" text-anchor="middle" font-size="12.5" fill="#bef264">advisories saved to keysnag.report.md</text>
-      <text x="115" y="104" text-anchor="middle" font-size="12.5" fill="#bef264">for you to triage when you want</text>
-    </g>
-    <line x1="952" y1="250" x2="1006" y2="250" stroke="#64748b" stroke-width="3" marker-end="url(#arrow)"/>
+    <!-- branch: clean -> main -->
+    <line x1="868" y1="171" x2="918" y2="171" stroke="#a3e635" stroke-width="3" marker-end="url(#arG)"/>
+    <text x="893" y="158" text-anchor="middle" font-size="12" font-weight="700" fill="#bef264">clean</text>
 
-    <!-- 4. production -->
-    <g transform="translate(1010,190)">
-      <rect width="150" height="120" rx="18" fill="#111c31" stroke="#334155"/>
-      <text x="75" y="52" text-anchor="middle" font-size="15" font-weight="700" fill="#e2e8f0">main</text>
-      <text x="75" y="78" text-anchor="middle" font-size="13" fill="#94a3b8">then production</text>
+    <!-- step 4 -->
+    <g transform="translate(922,96)">
+      <rect width="230" height="150" rx="18" fill="#10261f" stroke="#a3e635" stroke-width="2"/>
+      <circle cx="30" cy="30" r="15" fill="#a3e635"/><text x="30" y="35" text-anchor="middle" font-size="15" font-weight="800" fill="#0a1020">4</text>
+      <text x="56" y="35" font-size="15" font-weight="700" fill="#ecfccb">main, then production</text>
+      <text x="22" y="72" font-size="13.5" fill="#bef264">Push goes through.</text>
+      <text x="22" y="92" font-size="13.5" fill="#94a3b8">Non-critical advisories land</text>
+      <text x="22" y="112" font-size="13.5" fill="#94a3b8">in keysnag.report.md for you</text>
+      <text x="22" y="132" font-size="13.5" fill="#94a3b8">to triage when you want.</text>
     </g>
+
+    <text x="600" y="316" text-anchor="middle" font-size="13" fill="#64748b">Inside Claude Code the plugin hook wakes Claude with the findings so it fixes them before continuing. Everywhere else, the git hook does the blocking.</text>
   </g>
 </svg>

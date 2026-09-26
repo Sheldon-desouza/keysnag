@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="440" viewBox="0 0 1200 440" role="img" aria-label="The 12 keysnag checks at a glance: secrets, config, authz, injection, payments, backdoor, ai-endpoints, deps, urlprobe, rls, storage, twoaccount. Red dot means the check can block a push on a critical finding; amber means it warns only.">
+  <defs>
+    <linearGradient id="bg3" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0a1020"/>
+      <stop offset="1" stop-color="#0f1d3a"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="440" rx="26" fill="url(#bg3)"/>
+  <g font-family="-apple-system, 'Segoe UI', Inter, Roboto, Helvetica, Arial, sans-serif">
+    <text x="48" y="52" font-size="22" font-weight="800" fill="#f8fafc">12 checks. Blocks on critical only.</text>
+    <g font-size="13" fill="#94a3b8">
+      <circle cx="838" cy="46" r="6" fill="#f87171"/><text x="852" y="51">can block the push</text>
+      <circle cx="1002" cy="46" r="6" fill="#fbbf24"/><text x="1016" y="51">warns only</text>
+    </g>
+
+    <!-- tiles: 4 columns x 3 rows, 270x96, gap 18; origin 48,80 -->
+    <g font-family="-apple-system, 'Segoe UI', Inter, Roboto, Helvetica, Arial, sans-serif">
+      <!-- row 1 -->
+      <g transform="translate(48,80)"><rect width="270" height="96" rx="14" fill="#0e1830" stroke="#243352"/><circle cx="24" cy="26" r="6" fill="#f87171"/><text x="40" y="31" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="15" font-weight="700" fill="#67e8f9">secrets</text><text x="24" y="58" font-size="12.5" fill="#cbd5e1">Keys and service_role JWTs in the repo</text><text x="24" y="76" font-size="12.5" fill="#cbd5e1">and in the JS bundle you actually ship</text></g>
+      <g transform="translate(336,80)"><rect width="270" height="96" rx="14" fill="#0e1830" stroke="#243352"/><circle cx="24" cy="26" r="6" fill="#f87171"/><text x="40" y="31" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="15" font-weight="700" fill="#67e8f9">config</text><text x="24" y="58" font-size="12.5" fill="#cbd5e1">Secrets in NEXT_PUBLIC_*, TLS checks off,</text><text x="24" y="76" font-size="12.5" fill="#cbd5e1">weak tokens, CORS *, prod source maps</text></g>
+      <g transform="translate(624,80)"><rect width="270" height="96" rx="14" fill="#0e1830" stroke="#243352"/><circle cx="24" cy="26" r="6" fill="#f87171"/><text x="40" y="31" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="15" font-weight="700" fill="#67e8f9">authz</text><text x="24" y="58" font-size="12.5" fill="#cbd5e1">Routes that hit the DB with no auth check,</text><text x="24" y="76" font-size="12.5" fill="#cbd5e1">client-supplied user ids, unguarded /admin</text></g>
+      <g transform="translate(912,80)"><rect width="240" height="96" rx="14" fill="#0e1830" stroke="#243352"/><circle cx="24" cy="26" r="6" fill="#f87171"/><text x="40" y="31" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="15" font-weight="700" fill="#67e8f9">injection</text><text x="24" y="58" font-size="12.5" fill="#cbd5e1">SQL concat, XSS sinks, eval,</text><text x="24" y="76" font-size="12.5" fill="#cbd5e1">shell, SSRF, path traversal</text></g>
+      <!-- row 2 -->
+      <g transform="translate(48,194)"><rect width="270" height="96" rx="14" fill="#0e1830" stroke="#243352"/><circle cx="24" cy="26" r="6" fill="#f87171"/><text x="40" y="31" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="15" font-weight="700" fill="#67e8f9">payments</text><text x="24" y="58" font-size="12.5" fill="#cbd5e1">Stripe webhooks never verified,</text><text x="24" y="76" font-size="12.5" fill="#cbd5e1">prices taken from the client</text></g>
+      <g transform="translate(336,194)"><rect width="270" height="96" rx="14" fill="#0e1830" stroke="#243352"/><circle cx="24" cy="26" r="6" fill="#f87171"/><text x="40" y="31" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="15" font-weight="700" fill="#67e8f9">backdoor</text><text x="24" y="58" font-size="12.5" fill="#cbd5e1">Obfuscated eval, hardcoded password</text><text x="24" y="76" font-size="12.5" fill="#cbd5e1">bypasses, env dumps, exfil hosts</text></g>
+      <g transform="translate(624,194)"><rect width="270" height="96" rx="14" fill="#0e1830" stroke="#243352"/><circle cx="24" cy="26" r="6" fill="#fbbf24"/><text x="40" y="31" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="15" font-weight="700" fill="#67e8f9">ai-endpoints</text><text x="24" y="58" font-size="12.5" fill="#cbd5e1">LLM keys in the browser, AI routes with</text><text x="24" y="76" font-size="12.5" fill="#cbd5e1">no auth or spend bound, unsafe output</text></g>
+      <g transform="translate(912,194)"><rect width="240" height="96" rx="14" fill="#0e1830" stroke="#243352"/><circle cx="24" cy="26" r="6" fill="#f87171"/><text x="40" y="31" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="15" font-weight="700" fill="#67e8f9">deps</text><text x="24" y="58" font-size="12.5" fill="#cbd5e1">Known CVEs in your lockfile,</text><text x="24" y="76" font-size="12.5" fill="#cbd5e1">with the version that fixes them</text></g>
+      <!-- row 3 -->
+      <g transform="translate(48,308)"><rect width="270" height="96" rx="14" fill="#0e1830" stroke="#243352"/><circle cx="24" cy="26" r="6" fill="#fbbf24"/><text x="40" y="31" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="15" font-weight="700" fill="#67e8f9">urlprobe</text><text x="24" y="58" font-size="12.5" fill="#cbd5e1">Exposed .env/.git on the live site, missing</text><text x="24" y="76" font-size="12.5" fill="#cbd5e1">headers, admin pages open, no rate limit</text></g>
+      <g transform="translate(336,308)"><rect width="270" height="96" rx="14" fill="#0e1830" stroke="#243352"/><circle cx="24" cy="26" r="6" fill="#f87171"/><text x="40" y="31" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="15" font-weight="700" fill="#67e8f9">rls</text><text x="24" y="58" font-size="12.5" fill="#cbd5e1">Supabase RLS off, USING (true), policies</text><text x="24" y="76" font-size="12.5" fill="#cbd5e1">that check login but not ownership</text></g>
+      <g transform="translate(624,308)"><rect width="270" height="96" rx="14" fill="#0e1830" stroke="#243352"/><circle cx="24" cy="26" r="6" fill="#f87171"/><text x="40" y="31" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="15" font-weight="700" fill="#67e8f9">storage</text><text x="24" y="58" font-size="12.5" fill="#cbd5e1">Public buckets, wide-open policies,</text><text x="24" y="76" font-size="12.5" fill="#cbd5e1">cron routes with no secret</text></g>
+      <g transform="translate(912,308)"><rect width="240" height="96" rx="14" fill="#0e1830" stroke="#243352"/><circle cx="24" cy="26" r="6" fill="#f87171"/><text x="40" y="31" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="15" font-weight="700" fill="#67e8f9">twoaccount</text><text x="24" y="58" font-size="12.5" fill="#cbd5e1">Proves user B can read user A's</text><text x="24" y="76" font-size="12.5" fill="#cbd5e1">rows, the way an attacker would</text></g>
+    </g>
+  </g>
+</svg>

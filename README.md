@@ -235,7 +235,7 @@ Every check ships with a fixture that trips it and a real-repo run that does not
 
 ## Licence
 
-MIT. Built by [Sheldon de Souza](https://github.com/Sheldon-desouza).
+MIT. Built by [Sheldon de Souza](https://github.com/Sheldon-desouza) with Keegan de Souza, a recent cybersecurity graduate who contributes to the threat model and check catalogue.
 
 ---
 

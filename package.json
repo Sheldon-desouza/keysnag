@@ -71,5 +71,8 @@
     "cve",
     "stripe-webhook"
   ],
-  "author": "Sheldon de Souza (https://github.com/Sheldon-desouza)"
+  "author": "Sheldon de Souza (https://github.com/Sheldon-desouza)",
+  "contributors": [
+    "Keegan de Souza"
+  ]
 }

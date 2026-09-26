@@ -1,6 +1,6 @@
 {
   "name": "keysnag",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
   "description": "Local security checks for AI-built Next.js + Supabase apps. Runs in your terminal, Claude Code, or any MCP client. Nothing leaves your machine.",
   "type": "module",
@@ -24,5 +24,14 @@
     "@types/pg": "^8.11.10",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Sheldon-desouza/keysnag.git"
+  },
+  "homepage": "https://github.com/Sheldon-desouza/keysnag#readme",
+  "bugs": {
+    "url": "https://github.com/Sheldon-desouza/keysnag/issues"
   }
 }

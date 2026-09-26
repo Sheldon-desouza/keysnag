@@ -1,5 +1,4 @@
 node_modules/
-dist/
 .env
 .env.local
 # Exception: the fixture's .env.local is a deliberately committed insecure

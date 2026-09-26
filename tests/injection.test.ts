@@ -92,7 +92,7 @@ test("the safe fixture trips no injection rule", async () => {
 });
 
 // Calibration fixtures (ledger item 11, injection.ts bullet): each of these
-// reproduces a real false positive found on a production app's dogfood and must not
+// reproduces a real false positive found on a real-repo dogfood and must not
 // fire any injection.* rule.
 const SAFE_FILES = [
   "safe-ssrf-client.tsx", // "use client" component fetching its own API with a relative URL

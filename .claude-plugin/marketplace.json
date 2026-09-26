@@ -1,0 +1,12 @@
+{
+  "name": "keysnag",
+  "description": "keysnag: cybersecurity for AI founders and vibe coders. A pre-push security gate for apps built with Claude Code, Cursor, Lovable and Bolt. 12 deterministic, local-only checks; blocks on critical.",
+  "owner": { "name": "Sheldon de Souza", "url": "https://github.com/Sheldon-desouza" },
+  "plugins": [
+    {
+      "name": "keysnag",
+      "source": "./plugin",
+      "description": "Pre-push security gate: secrets, RLS, authz, injection, payments, backdoors, AI endpoints, CVEs, storage, live-URL probes, cross-account test. /security-check command, auto-runs on git commit/push."
+    }
+  ]
+}

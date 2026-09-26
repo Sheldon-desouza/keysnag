@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="360" viewBox="0 0 1200 360" role="img" aria-label="How keysnag works: your AI coding agent writes code, you push, keysnag runs 12 checks in seconds, a critical finding blocks the push and is fed back to the agent to fix, clean code reaches main.">
+  <defs>
+    <linearGradient id="bg2" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0b1220"/>
+      <stop offset="1" stop-color="#101c33"/>
+    </linearGradient>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#64748b"/>
+    </marker>
+    <marker id="arrowRed" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#f87171"/>
+    </marker>
+  </defs>
+  <rect width="1200" height="360" rx="24" fill="url(#bg2)"/>
+  <g font-family="ui-sans-serif, -apple-system, Segoe UI, Inter, Roboto, Helvetica, Arial, sans-serif">
+
+    <!-- 1. agents -->
+    <g transform="translate(40,90)">
+      <rect width="220" height="150" rx="18" fill="#111c31" stroke="#334155"/>
+      <text x="110" y="34" text-anchor="middle" font-size="14" font-weight="700" fill="#94a3b8">YOUR AI AGENT WRITES CODE</text>
+      <text x="110" y="70" text-anchor="middle" font-size="17" font-weight="600" fill="#e2e8f0">Claude Code · Cursor</text>
+      <text x="110" y="96" text-anchor="middle" font-size="17" font-weight="600" fill="#e2e8f0">Lovable · Bolt · Codex</text>
+      <text x="110" y="128" text-anchor="middle" font-size="14" fill="#94a3b8">then: git push</text>
+    </g>
+    <line x1="262" y1="165" x2="316" y2="165" stroke="#64748b" stroke-width="3" marker-end="url(#arrow)"/>
+
+    <!-- 2. gate -->
+    <g transform="translate(320,50)">
+      <rect width="330" height="230" rx="20" fill="#0f1b30" stroke="#22d3ee" stroke-width="2"/>
+      <text x="165" y="36" text-anchor="middle" font-size="15" font-weight="800" fill="#67e8f9" letter-spacing="1">KEYSNAG PRE-PUSH GATE</text>
+      <text x="165" y="60" text-anchor="middle" font-size="13" fill="#94a3b8">12 deterministic checks, under 10 seconds, nothing leaves your machine</text>
+      <g font-size="13" fill="#e2e8f0">
+        <text x="28" y="96">• secrets in repo + shipped bundle</text>
+        <text x="28" y="118">• Supabase RLS + cross-account (IDOR)</text>
+        <text x="28" y="140">• auth on every route, admin gates</text>
+        <text x="28" y="162">• injection, SSRF, eval, shell</text>
+        <text x="28" y="184">• Stripe webhooks + client-priced charges</text>
+        <text x="28" y="206">• known CVEs, backdoors, AI-endpoint abuse</text>
+      </g>
+    </g>
+
+    <!-- 3a. blocked -->
+    <line x1="652" y1="120" x2="716" y2="100" stroke="#f87171" stroke-width="3" marker-end="url(#arrowRed)"/>
+    <g transform="translate(720,40)">
+      <rect width="230" height="120" rx="18" fill="#2a1216" stroke="#f87171" stroke-width="2"/>
+      <text x="115" y="34" text-anchor="middle" font-size="14" font-weight="800" fill="#fca5a5">CRITICAL FOUND</text>
+      <text x="115" y="62" text-anchor="middle" font-size="15" font-weight="600" fill="#fee2e2">Push is blocked</text>
+      <text x="115" y="84" text-anchor="middle" font-size="12.5" fill="#fca5a5">file:line + a fix your agent can apply</text>
+      <text x="115" y="104" text-anchor="middle" font-size="12.5" fill="#fca5a5">Claude Code is woken to fix it</text>
+    </g>
+    <path d="M950 100 C 1010 100, 1010 40, 960 30 C 700 -10, 330 -10, 250 60" fill="none" stroke="#f87171" stroke-width="2" stroke-dasharray="6 6" marker-end="url(#arrowRed)" opacity="0.8"/>
+    <text x="600" y="22" text-anchor="middle" font-size="12.5" fill="#fca5a5">fix, then push again</text>
+
+    <!-- 3b. passed -->
+    <line x1="652" y1="210" x2="716" y2="230" stroke="#64748b" stroke-width="3" marker-end="url(#arrow)"/>
+    <g transform="translate(720,190)">
+      <rect width="230" height="120" rx="18" fill="#10261f" stroke="#a3e635" stroke-width="2"/>
+      <text x="115" y="34" text-anchor="middle" font-size="14" font-weight="800" fill="#bef264">NO CRITICAL FINDINGS</text>
+      <text x="115" y="62" text-anchor="middle" font-size="15" font-weight="600" fill="#ecfccb">Push goes through</text>
+      <text x="115" y="84" text-anchor="middle" font-size="12.5" fill="#bef264">advisories saved to keysnag.report.md</text>
+      <text x="115" y="104" text-anchor="middle" font-size="12.5" fill="#bef264">for you to triage when you want</text>
+    </g>
+    <line x1="952" y1="250" x2="1006" y2="250" stroke="#64748b" stroke-width="3" marker-end="url(#arrow)"/>
+
+    <!-- 4. production -->
+    <g transform="translate(1010,190)">
+      <rect width="150" height="120" rx="18" fill="#111c31" stroke="#334155"/>
+      <text x="75" y="52" text-anchor="middle" font-size="15" font-weight="700" fill="#e2e8f0">main</text>
+      <text x="75" y="78" text-anchor="middle" font-size="13" fill="#94a3b8">then production</text>
+    </g>
+  </g>
+</svg>

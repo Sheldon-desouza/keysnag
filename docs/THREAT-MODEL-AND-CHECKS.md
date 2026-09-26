@@ -27,7 +27,7 @@ Ordered by evidence weight (Lovable CVE-2025-48757 and the 170/1,645 exposed app
 
 ## 3. Design principles (non-negotiable)
 
-1. **Precision over recall for anything that blocks.** A check may block a push only after it has run on a real, non-trivial repo with zero false positives. Until then it warns. Every dogfood on a production app to date found each new check needed this tuning (secrets 597 to 0, urlprobe control-path, rls no-policy). Noisy gates get disabled; that is the single biggest product risk.
+1. **Precision over recall for anything that blocks.** A check may block a push only after it has run on a real, non-trivial repo with zero false positives. Until then it warns. Every dogfood on a real production app to date found each new check needed this tuning (secrets 597 to 0, urlprobe control-path, rls no-policy). Noisy gates get disabled; that is the single biggest product risk.
 2. **Deterministic first.** Rules, ASTs, catalogs, and live probes. An LLM review layer is a Tier 3 seam, not the core, because Anthropic's security-guidance plugin already does that inside Claude Code and keysnag's edge is running anywhere, including Cursor and CI.
 3. **Local and authorised only.** No telemetry. Network only to the user's own site, Supabase, and database, plus one opt-out third-party call: OSV.dev for CVE lookups (T7), because there is no offline way to know today's CVEs. `allowOsv=false` disables it.
 4. **Never print a secret.** All evidence through maskSecret. Findings carry location and a fix a coding agent can apply.
@@ -88,7 +88,7 @@ Status key: SHIPPED = exists and dogfooded. T1/T2/T3 = build tier. Each check: i
 ## 7. Acceptance for any new check
 
 1. Fixture file(s) under `fixture/` that trip it, with the expected finding ids listed in `fixture/README.md`.
-2. A run on the real a production app repo with every finding hand-verified: zero false positives before the check may block; otherwise it ships as warn.
+2. A run on a real production repo with every finding hand-verified: zero false positives before the check may block; otherwise it ships as warn.
 3. Evidence masked, location precise (file:line), fix phrased for a coding agent.
 4. Unit test for the rule logic and a test that it skips cleanly with missing inputs.
 5. Listed in the README "what it checks" table with its Tier and block status.

@@ -1,4 +1,4 @@
-// allow.ts — the exceptions baseline, modelled on a production app's an exceptions-baseline script:
+// allow.ts — the exceptions baseline, modelled on a production exceptions-baseline script:
 // every suppressed finding must name why it's acceptable AND the control that bounds abuse.
 // An entry missing either is not a valid exception; the gate refuses to run rather than let
 // it through silently (see validateAllowList).

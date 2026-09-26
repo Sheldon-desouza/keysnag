@@ -54,7 +54,7 @@ const QUERY_FILTER_RE = /\.eq\(|where\s*\(|WHERE\s/i;
 // like @/lib/admin-utils, or the route path itself) is not a role check: require an
 // actual check call or comparison. The named helpers (requireAdmin(, checkAdmin(, ...)
 // are covered, plus any other identifier that carries "admin"/"role" AND is invoked as
-// a function (e.g. checkAdminEmail(user.email), a real check dogfooded on a production app) so
+// a function (e.g. checkAdminEmail(user.email), a real check seen in a production app) so
 // this doesn't regress into re-matching a bare, uncalled mention.
 // Verify cycle 2: `\w*admin\w*\(` also matched `createAdminClient()` (a service
 // client, not a gate), silencing the rule on a route that only checked login. An

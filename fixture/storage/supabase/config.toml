@@ -1,0 +1,7 @@
+# Fixture: deliberately insecure Supabase config for keysnag's own tests.
+# Trips storage.edge_fn_no_jwt.
+[functions.public-webhook]
+verify_jwt = false
+
+[functions.private-admin]
+verify_jwt = true

@@ -90,6 +90,57 @@ this shape):
 }
 ```
 
+## Suppressing a finding
+
+Sometimes a finding is a real match on a route that is, on inspection, genuinely
+acceptable, an admin tool behind its own gate, a webhook that verifies signatures a
+different way, a cheap helper with no user data. keysnag lets you record that
+decision instead of just ignoring the finding, the same discipline a production app's own
+`an exceptions-baseline script` enforces for exceptions: **every suppression
+must say why it's acceptable and, separately, what stops it being abused.**
+
+Add an `allow` array to `keysnag.config.json`:
+
+```json
+{
+  "allow": [
+    {
+      "id": "authz.route_without_auth",
+      "location": "src/app/api/public/contact/route.ts",
+      "reason": "Public, unauthenticated tool by design.",
+      "bound": "Per-IP limit of 3 per 24h (rateLimit -> 429)."
+    }
+  ]
+}
+```
+
+- `id` matches a finding if it equals the finding's id, or is a prefix of it
+  (e.g. `"secret."` matches `secret.stripe_key`).
+- `location` matches the finding's `location` exactly, matches just the file part
+  before the `:line`, or is a glob (`*` and `**` are supported, no extra
+  dependency).
+- Both `reason` and `bound` are **mandatory and must be non-empty**. `reason` is
+  why this is acceptable; `bound` is the actual compensating control, a rate
+  limit, a quota, a plan gate, an auth check, or an explicit "no user data".
+  keysnag refuses to run at all, exiting 1 with the offending entries named,
+  if any allow entry is missing either. An exception with no stated bound is
+  not an exception, it's a hole with no story attached.
+
+A matched finding is never dropped. It is downgraded to `info` severity, its
+title is prefixed `[allowed] `, and its detail gets the reason and bound
+appended, so it still shows up in every report, it just never blocks a push.
+
+Use the CLI helper instead of hand-editing the file:
+
+```bash
+keysnag allow authz.route_without_auth src/app/api/public/contact/route.ts \
+  --reason "Public, unauthenticated tool by design." \
+  --bound "Per-IP limit of 3 per 24h (rateLimit -> 429)."
+```
+
+It creates `keysnag.config.json` if it doesn't exist, appends to any existing
+`allow` array, and refuses (no write) if `--reason` or `--bound` is empty.
+
 ## Privacy
 
 - No telemetry, no analytics, no phone-home of any kind.

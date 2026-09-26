@@ -32,6 +32,10 @@ export interface CheckContext {
   /** two signed-in Supabase user JWTs, for the cross-account test */
   tokenA?: string;
   tokenB?: string;
+  /** when set, file-based checks scan only these repo-relative paths (pre-push diff mode) */
+  changedFiles?: string[];
+  /** set false to forbid the one third-party call keysnag can make (OSV.dev CVE lookup) */
+  allowOsv?: boolean;
   log: (msg: string) => void;
 }
 

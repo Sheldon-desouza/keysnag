@@ -1,0 +1,28 @@
+{
+  "description": "keysnag — deterministic pre-push security gate, run from Claude Code on git commit/push",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/gate.mjs\"",
+            "if": "Bash(git commit:*)",
+            "asyncRewake": true,
+            "rewakeMessage": "keysnag security gate ran against this commit — fix any blocking (critical) findings below before continuing with the user's original request or push, then continue with the user's original request or continue waiting for their reply:",
+            "rewakeSummary": "keysnag found blocking findings"
+          },
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/gate.mjs\"",
+            "if": "Bash(git push:*)",
+            "asyncRewake": true,
+            "rewakeMessage": "keysnag security gate ran against this push — fix any blocking (critical) findings below before continuing with the user's original request or continue waiting for their reply:",
+            "rewakeSummary": "keysnag found blocking findings"
+          }
+        ],
+        "matcher": "Bash"
+      }
+    ]
+  }
+}

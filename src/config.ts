@@ -2,8 +2,9 @@
 // Precedence, highest first: CLI flags (passed in as `overrides`) > env vars > keysnag.config.json.
 import { readFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
-import type { CheckContext, Check } from "./types.js";
+import type { CheckContext, Check, Severity } from "./types.js";
 import { checks as registry } from "./checks/index.js";
+import { SEVERITIES } from "./gate.js";
 
 /** Minimal .env parser: KEY=VALUE per line, `#` comments, no interpolation, no quoting rules beyond strip. */
 function parseEnvFile(text: string): Record<string, string> {
@@ -65,6 +66,7 @@ export interface ContextOverrides {
   pgUrl?: string;
   tokenA?: string;
   tokenB?: string;
+  allowOsv?: boolean;
   log?: (msg: string) => void;
   cwd?: string;
 }
@@ -101,8 +103,24 @@ export function loadContext(overrides: ContextOverrides = {}): CheckContext {
     pgUrl: overrides.pgUrl ?? envOrDotEnv("KEYSNAG_PG_URL") ?? config.pgUrl,
     tokenA: overrides.tokenA ?? envOrDotEnv("KEYSNAG_TOKEN_A") ?? config.tokenA,
     tokenB: overrides.tokenB ?? envOrDotEnv("KEYSNAG_TOKEN_B") ?? config.tokenB,
+    allowOsv: overrides.allowOsv ?? parseAllowOsv(envOrDotEnv("KEYSNAG_ALLOW_OSV")),
     log: overrides.log ?? ((msg: string) => console.error(msg)),
   };
+}
+
+/** KEYSNAG_ALLOW_OSV="false" disables the one third-party call (OSV.dev). Anything else, or unset, allows it. */
+function parseAllowOsv(value: string | undefined): boolean | undefined {
+  if (value === undefined) return undefined;
+  return value.trim().toLowerCase() !== "false";
+}
+
+/** Reads KEYSNAG_FAIL_ON for the default `--fail-on` value. Falls back to "critical" if unset or invalid. */
+export function loadFailOnDefault(): Severity | "off" {
+  const raw = process.env.KEYSNAG_FAIL_ON;
+  if (raw === "off" || (SEVERITIES as string[]).includes(raw ?? "")) {
+    return raw as Severity | "off";
+  }
+  return "critical";
 }
 
 /** Filters the check registry to the given names, in registry order. Unknown names are dropped silently. */

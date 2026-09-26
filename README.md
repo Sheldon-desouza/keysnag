@@ -59,18 +59,17 @@ It is a plain git hook, so it behaves identically whether you push from Cursor, 
 
 ## Install in 60 seconds
 
-> npm publish is pending, so install from GitHub for now. The built `dist/` is committed, so everything below works straight from a clone.
+No install step. Run it straight from npm inside your project:
 
 ```bash
-git clone https://github.com/Sheldon-desouza/keysnag.git
-cd keysnag && npm install && npm run build
+# one-off scan of the current repo
+npx keysnag scan
 
-# one-off scan of your app
-node dist/cli.js scan --repo /path/to/your/app
-
-# add the pre-push gate to your app (chains any hook you already have)
-node dist/cli.js install --repo /path/to/your/app
+# add the pre-push gate (chains any hook you already have, gitignores its reports)
+npx keysnag install
 ```
+
+Prefer a local checkout? `git clone https://github.com/Sheldon-desouza/keysnag.git && cd keysnag && npm install && npm run build`, then `node dist/cli.js scan --repo /path/to/your/app`.
 
 Optional: point it at your live site and database to unlock the live checks. Copy `.env.example` to `.env` in the keysnag folder and fill in what you have:
 
@@ -180,8 +179,8 @@ keysnag runs as an MCP stdio server exposing `run_security_check` (the full repo
 {
   "mcpServers": {
     "keysnag": {
-      "command": "node",
-      "args": ["/absolute/path/to/keysnag/dist/mcp.js"],
+      "command": "npx",
+      "args": ["-y", "keysnag-mcp"],
       "env": {
         "KEYSNAG_REPO_DIR": "/absolute/path/to/your/project",
         "KEYSNAG_SITE_URL": "https://your-app.vercel.app"

@@ -1,11 +1,11 @@
 {
   "name": "keysnag",
   "version": "0.1.0",
-  "private": true,
-  "description": "Local security checks for AI-built Next.js + Supabase apps. Runs in your terminal, Claude Code, or any MCP client. Nothing leaves your machine.",
+  "description": "Cybersecurity for AI founders and vibe coders. A pre-push security gate for apps built with Claude Code, Cursor, Codex, Lovable and Bolt: 12 offline checks for leaked keys, Supabase RLS, cross-account (IDOR) access, injection, Stripe webhooks, known CVEs and backdoors. Blocks the push on critical.",
   "type": "module",
   "bin": {
-    "keysnag": "dist/cli.js"
+    "keysnag": "dist/cli.js",
+    "keysnag-mcp": "dist/mcp.js"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
@@ -33,5 +33,43 @@
   "homepage": "https://github.com/Sheldon-desouza/keysnag#readme",
   "bugs": {
     "url": "https://github.com/Sheldon-desouza/keysnag/issues"
-  }
+  },
+  "files": [
+    "dist",
+    "plugin",
+    "docs/THREAT-MODEL-AND-CHECKS.md",
+    ".env.example",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "keywords": [
+    "security",
+    "cybersecurity",
+    "pre-push",
+    "git-hook",
+    "secret-scanning",
+    "supabase",
+    "rls",
+    "idor",
+    "nextjs",
+    "vercel",
+    "claude-code",
+    "claude",
+    "cursor",
+    "codex",
+    "lovable",
+    "bolt",
+    "vibe-coding",
+    "ai-security",
+    "mcp",
+    "mcp-server",
+    "appsec",
+    "devsecops",
+    "cve",
+    "stripe-webhook"
+  ],
+  "author": "Sheldon de Souza (https://github.com/Sheldon-desouza)"
 }

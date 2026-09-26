@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/hero.svg" alt="keysnag: cybersecurity for AI founders and vibe coders. The pre-push security gate for apps built with Claude Code, Cursor, Lovable and Bolt." width="100%">
+  <img src="https://raw.githubusercontent.com/Sheldon-desouza/keysnag/main/docs/assets/hero.svg" alt="keysnag: cybersecurity for AI founders and vibe coders. The pre-push security gate for apps built with Claude Code, Cursor, Lovable and Bolt." width="100%">
 </p>
 
 <p align="center">
@@ -47,7 +47,7 @@ Every one of those is a known, catchable defect class. keysnag catches them befo
 ## How it works
 
 <p align="center">
-  <img src="docs/assets/how-it-works.svg" alt="How keysnag works: your agent writes code, you push, keysnag runs 12 checks, a critical finding blocks the push and is fed back to the agent to fix, clean code reaches main." width="100%">
+  <img src="https://raw.githubusercontent.com/Sheldon-desouza/keysnag/main/docs/assets/how-it-works.svg" alt="How keysnag works: your agent writes code, you push, keysnag runs 12 checks, a critical finding blocks the push and is fed back to the agent to fix, clean code reaches main." width="100%">
 </p>
 
 1. You (or your agent) run `git push`.
@@ -88,7 +88,7 @@ Any check whose inputs are missing is skipped and the report tells you exactly w
 ## What it checks
 
 <p align="center">
-  <img src="docs/assets/checks.svg" alt="The 12 keysnag checks at a glance: secrets, config, authz, injection, payments, backdoor, ai-endpoints, deps, urlprobe, rls, storage, twoaccount." width="100%">
+  <img src="https://raw.githubusercontent.com/Sheldon-desouza/keysnag/main/docs/assets/checks.svg" alt="The 12 keysnag checks at a glance: secrets, config, authz, injection, payments, backdoor, ai-endpoints, deps, urlprobe, rls, storage, twoaccount." width="100%">
 </p>
 
 12 checks, grouped by what they need. "Blocks a push?" reflects the default gate (`--fail-on critical`): only critical findings stop a push; everything else is reported and left for you.

@@ -441,7 +441,7 @@ async function queryOsv(
       fix: packageFixed
         ? perAdvisoryFixed.length === ids.length
           ? `Upgrade ${pkg.name} to ${packageFixed}.`
-          : `Upgrade ${pkg.name} to ${packageFixed} (fixes ${perAdvisoryFixed.length} of ${ids.length} advisories; ${ids.length - perAdvisoryFixed.length} have no published fix yet, so track them and consider replacing ${pkg.name} if they are exploitable in this app's context).`
+          : `Upgrade ${pkg.name} to ${packageFixed} (fixes ${perAdvisoryFixed.length} of ${ids.length} advisories; ${ids.length - perAdvisoryFixed.length} ${ids.length - perAdvisoryFixed.length === 1 ? 'has' : 'have'} no published fix yet, so track them and consider replacing ${pkg.name} if they are exploitable in this app's context).`
         : `No fixed version has been published for ${pkg.name}'s known advisories. Track them and consider removing or replacing ${pkg.name} if exploitable in this app's context.`,
     });
   }

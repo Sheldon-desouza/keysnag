@@ -70,6 +70,9 @@ const check: Check = {
          join pg_namespace n on n.oid = c.relnamespace and n.nspname = t.schemaname
          where t.schemaname = 'public'`
       );
+      const rlsDisabledTables = new Set<string>(
+        disabled.rows.filter((r) => !r.rowsecurity).map((r) => r.tablename),
+      );
       for (const row of disabled.rows) {
         if (!row.rowsecurity) {
           findings.push({
@@ -102,12 +105,12 @@ const check: Check = {
           findings.push({
             id: "rls.no_policy",
             check: check.name,
-            severity: "high",
-            title: `RLS on but no policy blocks all or, if forced off, exposes on public.${row.tablename}`,
+            severity: "info",
+            title: `RLS enabled with no policy on public.${row.tablename} (locked down)`,
             detail:
-              "Row Level Security is enabled on this table but no policy exists. With RLS enabled and no policy, Postgres denies all rows by default, which usually breaks the app; if RLS is ever force-disabled or bypassed, the table has no protection at all.",
+              "Row Level Security is enabled and no policy exists, so Postgres denies every row to the anon and authenticated API roles. This is a safe, fully locked-down state, the correct default for server-only tables. It is NOT a vulnerability. Only add a policy if the app is meant to let users read or write this table directly through the API; otherwise leave it as is.",
             location: `public.${row.tablename}`,
-            fix: `Add an ownership policy, e.g. CREATE POLICY "owner_access" ON public.${row.tablename} USING (auth.uid() = user_id);`,
+            fix: `No action needed unless users are supposed to access this table via the API. If they are, add an ownership policy, e.g. CREATE POLICY "owner_access" ON public.${row.tablename} USING (auth.uid() = user_id);`,
           });
         }
       }
@@ -164,6 +167,11 @@ const check: Check = {
         grantsByTable.set(g.table_name, set);
       }
       for (const [table, privileges] of grantsByTable) {
+        // Supabase grants the anon/authenticated roles on every public table by
+        // default and relies on RLS as the gate, so a grant alone is normal and
+        // safe. Only flag it where RLS is actually OFF on the same table, which
+        // is the case where anon can really read/write the data.
+        if (!rlsDisabledTables.has(table)) continue;
         findings.push({
           id: "rls.anon_grant",
           check: check.name,

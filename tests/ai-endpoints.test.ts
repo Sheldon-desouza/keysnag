@@ -73,6 +73,18 @@ test("does not flag output rendering that goes through DOMPurify.sanitize", asyn
   assert.equal(hit, undefined);
 });
 
+test("does not flag a static page's JSON-LD idiom (__html: JSON.stringify), no LLM anywhere", async () => {
+  const findings = await runAi();
+  const hits = findings.filter((f) => f.location?.includes("safe-static-jsonld.tsx"));
+  assert.deepEqual(hits, []);
+});
+
+test("does not flag a marketing page rendering pre-authored HTML with no LLM import", async () => {
+  const findings = await runAi();
+  const hits = findings.filter((f) => f.location?.includes("safe-landing.tsx"));
+  assert.deepEqual(hits, []);
+});
+
 test("the fully safe route (auth + rate limit + templated prompt) is clean", async () => {
   const findings = await runAi();
   const hitsInSafeRoute = findings.filter((f) => f.location?.includes("chat-safe/route.ts"));

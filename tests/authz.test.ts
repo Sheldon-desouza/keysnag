@@ -51,6 +51,9 @@ test("authz.client_supplied_identity fires when a query is filtered by an id rea
   );
   assert.ok(hit, "expected authz.client_supplied_identity on bad-client-identity/app/api/profile/route.ts");
   assert.equal(hit!.severity, "high");
+  // LEDGER item 11 (I): must report the line of the matched identity read
+  // (searchParams.get("userId") on line 11), not line 1 (the import).
+  assert.equal(hit!.location, "bad-client-identity/app/api/profile/route.ts:11");
 });
 
 test("authz.admin_route_no_role_check fires on an /admin route with no role check", async () => {
@@ -68,6 +71,34 @@ test("a correctly-guarded route trips no authz finding", async () => {
   assert.deepEqual(hits, [], `expected no findings on good/app/api/orders/route.ts, got ${JSON.stringify(hits)}`);
 });
 
+// LEDGER item 11 (I): a real admin route that imports and calls requireAdmin()
+// before writing must trip no finding at all (requireAdmin is both an auth
+// signal and a role-check signal).
+test("an admin route guarded by requireAdmin() trips no authz finding", async () => {
+  const findings = await runAuthz();
+  const hits = findings.filter((f) => f.location?.includes("safe-require-admin/"));
+  assert.deepEqual(hits, [], `expected no findings on safe-require-admin route, got ${JSON.stringify(hits)}`);
+});
+
+// LEDGER item 11 (I): auth-flow routes under /api/auth/ are public by design
+// (rate-limited elsewhere) and must be skipped entirely.
+test("a route under /api/auth/ trips no authz finding", async () => {
+  const findings = await runAuthz();
+  const hits = findings.filter((f) => f.location?.includes("safe-auth-flow/"));
+  assert.deepEqual(hits, [], `expected no findings on safe-auth-flow/app/api/auth/check-confirmed/route.ts, got ${JSON.stringify(hits)}`);
+});
+
+// LEDGER item 11 (I) precision risk: admin_route_no_role_check must strip
+// comments before matching, so a comment-only mention of "admin"/"role" does
+// not suppress a real finding.
+test("admin_route_no_role_check fires even when the only admin/role mention is in a comment", async () => {
+  const findings = await runAuthz();
+  const hit = findings.find(
+    (f) => f.id === "authz.admin_route_no_role_check" && f.location?.includes("safe-comment-mention/"),
+  );
+  assert.ok(hit, "expected authz.admin_route_no_role_check on safe-comment-mention/app/api/admin/x/route.ts");
+});
+
 test("skips cleanly on an empty directory with no matching routes", async () => {
   const dir = mkdtempSync(join(tmpdir(), "keysnag-authz-empty-"));
   try {
@@ -77,4 +108,11 @@ test("skips cleanly on an empty directory with no matching routes", async () => 
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test("an admin-gated operator route acting on another user's id does NOT trip client_supplied_identity", async () => {
+  const authz = (await import("../src/checks/authz.js")).default;
+  const res = await authz.run({ repoDir: "./fixture/authz/safe-admin-repair", log: () => {} });
+  const hit = res.findings.find((f) => f.id === "authz.client_supplied_identity");
+  assert.equal(hit, undefined, `should not fire on an admin-gated route: ${JSON.stringify(res.findings.map((f) => f.id))}`);
 });

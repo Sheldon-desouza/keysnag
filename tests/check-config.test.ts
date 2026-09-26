@@ -69,6 +69,18 @@ test("safe.ts (crypto.randomUUID, bcrypt-style sha256+salt, env-var JWT secret, 
   assert.deepEqual(hits, [], `expected no findings on safe.ts, got: ${JSON.stringify(hits)}`);
 });
 
+test("safe-env-label.tsx (service_role KEY NAME as a UI label string, never used) is clean", async () => {
+  const findings = await runConfig();
+  const hits = findings.filter((f) => f.location?.includes("safe-env-label.tsx"));
+  assert.deepEqual(hits, [], `expected no findings on safe-env-label.tsx, got: ${JSON.stringify(hits)}`);
+});
+
+test("docs-cors.md (markdown showing the vulnerable CORS example) is skipped: source-extensions-only", async () => {
+  const findings = await runConfig();
+  const hits = findings.filter((f) => f.location?.includes("docs-cors.md"));
+  assert.deepEqual(hits, [], `expected no findings on docs-cors.md, got: ${JSON.stringify(hits)}`);
+});
+
 test("an empty directory yields no findings", async () => {
   const dir = await mkdtemp(join(tmpdir(), "keysnag-config-empty-"));
   try {

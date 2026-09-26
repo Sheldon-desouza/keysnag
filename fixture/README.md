@@ -98,12 +98,17 @@ value). Every schema flaw and every route is a known, seeded vulnerability.
 | Flaw | Where | Expected id | Severity |
 |---|---|---|---|
 | Obfuscated base64-eval chain | `fixture/backdoor/obfuscated_eval.ts` | `backdoor.obfuscated_eval` | critical |
-| Hardcoded password/token/role literal bypass | `fixture/backdoor/literal_bypass.ts` | `backdoor.literal_bypass` | critical (high for a role-literal check) |
+| Hardcoded credential literal bypass (password/passwd/pin/secret/masterKey/apiKey) | `fixture/backdoor/literal_bypass.ts` | `backdoor.literal_bypass` | critical |
 | Auth-skip flag short-circuits an auth check | `fixture/backdoor/auth_skip_flag.ts` | `backdoor.auth_skip_flag` | high |
-| `process.env` dumped into a response | `fixture/backdoor/env_dump.ts` | `backdoor.env_dump` | high |
-| Outbound call to a host not on the known-provider allowlist | `fixture/backdoor/unexpected_outbound.ts` | `backdoor.unexpected_outbound` | medium |
-| Prompt-injection artifact left in source | `fixture/backdoor/prompt_injection_artifact.ts` | `backdoor.prompt_injection_artifact` | medium |
+| `process.env` serialised/sent into a response or log | `fixture/backdoor/env_dump.ts` | `backdoor.env_dump` | high |
+| Outbound call to an exfil/tunnel host (raw IP, ngrok, telegram bot, etc.) | `fixture/backdoor/suspicious_outbound.ts` | `backdoor.suspicious_outbound` | high |
+| Prompt-injection attack phrase inside a string literal | `fixture/backdoor/prompt_injection_artifact.ts` | `backdoor.prompt_injection_artifact` | low |
 | Safe counterpart (must stay clean) | `fixture/backdoor/safe.ts` | none | - |
+| Safe: role-literal discriminated-union checks (`m.role === 'user'`, `c.role === 'performance'`) | `fixture/backdoor/safe-role-literal.ts` | none | - |
+| Safe: legitimate provider integrations (fal.run, perplexity, amazon) | `fixture/backdoor/safe-outbound.ts` | none | - |
+| Safe: comment/docstring mentioning "system prompt" with no attack phrase | `fixture/backdoor/safe-prompt-comment.ts` | none | - |
+| Safe: local env merge, never serialised/sent | `fixture/backdoor/safe-env-merge.ts` | none | - |
+| Safe: single named `process.env.KEY` property read, not the whole object | `fixture/backdoor/safe-env-property.ts` | none | - |
 
 ### ai-endpoints
 

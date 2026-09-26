@@ -34,13 +34,24 @@ const RULE_TO_FILE: Record<string, string> = {
   "injection.proto_pollution": "proto-pollution.ts",
 };
 
+// injection.command also fires (medium) on command-build-script.ts, the
+// non-request-derived calibration fixture; every other rule fires only in its
+// one designated bad fixture.
+const RULE_TO_EXTRA_FILES: Record<string, string[]> = {
+  "injection.command": ["command-build-script.ts"],
+};
+
 test("every rule fires only for its own bad fixture", async () => {
   const findings = await runInjection(fixtureDir);
   for (const [id, file] of Object.entries(RULE_TO_FILE)) {
+    const allowedFiles = [file, ...(RULE_TO_EXTRA_FILES[id] ?? [])];
     const hits = findings.filter((f) => f.id === id);
     assert.ok(hits.length > 0, `expected at least one ${id} finding`);
     for (const hit of hits) {
-      assert.ok(hit.location?.includes(file), `${id} fired at ${hit.location}, expected it in ${file}`);
+      assert.ok(
+        allowedFiles.some((f) => hit.location?.includes(f)),
+        `${id} fired at ${hit.location}, expected it in one of ${allowedFiles.join(", ")}`,
+      );
     }
   }
 });
@@ -48,9 +59,10 @@ test("every rule fires only for its own bad fixture", async () => {
 test("critical severity for request-derived sql_concat/eval/command", async () => {
   const findings = await runInjection(fixtureDir);
   for (const id of ["injection.sql_concat", "injection.eval", "injection.command"]) {
-    const hit = findings.find((f) => f.id === id);
-    assert.ok(hit, `expected a ${id} finding`);
-    assert.equal(hit!.severity, "critical", `expected ${id} to be critical, got ${hit!.severity}`);
+    const file = RULE_TO_FILE[id];
+    const hit = findings.find((f) => f.id === id && f.location?.includes(file));
+    assert.ok(hit, `expected a ${id} finding in ${file}`);
+    assert.equal(hit!.severity, "critical", `expected ${id} in ${file} to be critical, got ${hit!.severity}`);
   }
 });
 
@@ -77,6 +89,63 @@ test("the safe fixture trips no injection rule", async () => {
   const findings = await runInjection(fixtureDir);
   const safeHits = findings.filter((f) => f.location?.includes("safe.ts"));
   assert.equal(safeHits.length, 0, `expected no findings in safe.ts, got: ${JSON.stringify(safeHits)}`);
+});
+
+// Calibration fixtures (ledger item 11, injection.ts bullet): each of these
+// reproduces a real false positive found on a production app's dogfood and must not
+// fire any injection.* rule.
+const SAFE_FILES = [
+  "safe-ssrf-client.tsx", // "use client" component fetching its own API with a relative URL
+  "safe-ssrf-fixed-origin.ts", // server route fetching a fixed, hardcoded external origin
+  "safe-jsonld.tsx", // __html: JSON.stringify(...) — the Next.js JSON-LD idiom
+  "safe-innerhtml-literal.ts", // el.innerHTML = '<svg width="28">...</svg>' string literal
+  "safe-playwright-eval.ts", // page.$eval/$$eval/.evaluate(, not the eval() builtin
+  "docs-example.md", // markdown containing eval(req.body); markdown is skipped entirely
+];
+
+test("calibration fixtures trip no injection rule", async () => {
+  const findings = await runInjection(fixtureDir);
+  for (const file of SAFE_FILES) {
+    const hits = findings.filter((f) => f.location?.includes(file));
+    assert.equal(hits.length, 0, `expected no findings in ${file}, got: ${JSON.stringify(hits)}`);
+  }
+});
+
+test("a build script's non-request-derived command interpolation is medium, not high", async () => {
+  const findings = await runInjection(fixtureDir);
+  const hit = findings.find((f) => f.id === "injection.command" && f.location?.includes("command-build-script.ts"));
+  assert.ok(hit, "expected an injection.command finding in command-build-script.ts");
+  assert.equal(hit!.severity, "medium");
+});
+
+test("dangerous_html on a request-derived variable is high", async () => {
+  const findings = await runInjection(fixtureDir);
+  const hit = findings.find((f) => f.id === "injection.dangerous_html" && f.location?.includes("dangerous-html.tsx"));
+  assert.ok(hit, "expected an injection.dangerous_html finding in dangerous-html.tsx");
+  assert.equal(hit!.severity, "high");
+});
+
+test("a server route with fetch(userUrl) where userUrl comes from body.url still fires ssrf critical", async () => {
+  const { mkdtemp, writeFile } = await import("node:fs/promises");
+  const dir = await mkdtemp(join(tmpdir(), "keysnag-injection-ssrf-derived-"));
+  await writeFile(
+    join(dir, "route.ts"),
+    [
+      "import type { NextRequest } from \"next/server\";",
+      "export async function POST(req: NextRequest) {",
+      "  const body = await req.json();",
+      "  const userUrl = body.url;",
+      "  const res = await fetch(userUrl);",
+      "  return new Response(await res.text());",
+      "}",
+      "",
+    ].join("\n"),
+    "utf8",
+  );
+  const findings = await runInjection(dir);
+  const hit = findings.find((f) => f.id === "injection.ssrf");
+  assert.ok(hit, "expected an injection.ssrf finding");
+  assert.equal(hit!.severity, "critical");
 });
 
 test("findings are deduped one per (rule,file,line)", async () => {

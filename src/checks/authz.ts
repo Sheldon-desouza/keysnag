@@ -37,6 +37,9 @@ const DATA_ACCESS_RE = /supabase\.from\(|prisma\.|db\.|sql`|\.rpc\(|drizzle/;
 const AUTH_INDICATORS = [
   "getUser(", "getSession(", "auth()", "getServerSession(", "currentUser(",
   "requireAuth", "withAuth", "verifyJwt", "verifyToken",
+  "requireAdmin", "requireUser", "requireSession", "requireRole",
+  "getAuthUser", "assertAuth", "isAuthenticated", "withApiAuth",
+  "protectRoute", "checkAuth",
 ];
 const AUTHZ_HEADER_RE = /authorization/i;
 
@@ -47,7 +50,18 @@ const IDENTITY_KEYS = ["userId", "user_id", "ownerId", "owner_id", "accountId"];
 
 const QUERY_FILTER_RE = /\.eq\(|where\s*\(|WHERE\s/i;
 
-const ADMIN_ROLE_CHECK_RE = /\brole\b|\badmin\b|isAdmin|is_admin/i;
+const ADMIN_ROLE_CHECK_RE = /\brole\b|\badmin\b|isAdmin|is_admin|requireAdmin|requireRole|assertAdmin|checkAdmin/i;
+
+/**
+ * Strip // and /* *\/ comments so signal-matching (auth/role/data-access/identity)
+ * never fires on, or is never suppressed by, a mention inside a comment. Newlines
+ * are preserved so every downstream :line location stays accurate against the
+ * original text.
+ */
+function stripComments(text: string): string {
+  const noBlock = text.replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, " "));
+  return noBlock.replace(/\/\/.*$/gm, (m) => " ".repeat(m.length));
+}
 
 /** Best-effort: read middleware.ts/js at the repo root and extract matcher path prefixes. */
 async function loadMiddlewareMatchers(repoDir: string): Promise<string[]> {
@@ -105,6 +119,7 @@ function isInScope(relPath: string, text: string): boolean {
 
 function isClearlyPublic(routePath: string): boolean {
   const lower = routePath.toLowerCase();
+  if (/^\/api\/auth\//.test(lower)) return true; // auth flows (login/signup/confirm/etc.) are public by nature
   return PUBLIC_PATH_HINTS.some((hint) => lower.includes(hint));
 }
 
@@ -176,16 +191,24 @@ function checkRouteWithoutAuth(
   };
 }
 
+// A strict admin/role gate is a pattern that does NOT count as a generic auth signal here.
+const OPERATOR_GATE_RE = /requireAdmin|requireRole|assertAdmin|checkAdmin|isAdmin\s*\(|is_admin\s*\(/;
+
 function checkClientSuppliedIdentity(relPath: string, text: string): Finding | null {
   if (!QUERY_FILTER_RE.test(text)) return null;
+  // An operator route (requireAdmin etc.) acting on another user's row by an explicit id is the
+  // legitimate use of a client-supplied identity: the risk this rule targets is an ordinary user
+  // impersonating another, and an admin gate removes that caller. Calibrated on a real repo.
+  if (OPERATOR_GATE_RE.test(text)) return null;
   for (const key of IDENTITY_KEYS) {
     const readRe = new RegExp(
       `body\\.${key}\\b|body\\[["']${key}["']\\]|searchParams\\.get\\(["']${key}["']\\)|` +
         `params\\.${key}\\b|params\\[["']${key}["']\\]|req\\.query\\.${key}\\b|query\\.${key}\\b`,
       "i",
     );
-    const match = text.match(readRe);
+    const match = readRe.exec(text);
     if (match) {
+      const line = text.slice(0, match.index).split("\n").length;
       return {
         id: "authz.client_supplied_identity",
         check: "authz",
@@ -195,7 +218,7 @@ function checkClientSuppliedIdentity(relPath: string, text: string): Finding | n
           `The identity key "${key}" is read from the request (body/searchParams/params) and then used ` +
           "in a query filter (.eq/where). Any caller can pass someone else's id and read or edit that " +
           "person's rows (IDOR).",
-        location: `${relPath}:1`,
+        location: `${relPath}:${line}`,
         fix: `Ignore the client-supplied "${key}" and derive the identity from the verified session (e.g. supabase.auth.getUser()) before filtering the query.`,
       };
     }
@@ -252,13 +275,18 @@ async function scanRepo(repoDir: string, changedFiles: string[] | undefined, log
     const routePath = filePathToRoutePath(relPath);
     if (isClearlyPublic(routePath)) continue;
 
-    const a = checkRouteWithoutAuth(relPath, routePath, text, matchers);
+    // Match auth/role/data-access/identity signals against comment-stripped text
+    // (line numbers are preserved) so a mention inside a comment can never
+    // suppress a real finding, and a real check is never mistaken for one.
+    const stripped = stripComments(text);
+
+    const a = checkRouteWithoutAuth(relPath, routePath, stripped, matchers);
     if (a) findings.push(a);
 
-    const b = checkClientSuppliedIdentity(relPath, text);
+    const b = checkClientSuppliedIdentity(relPath, stripped);
     if (b) findings.push(b);
 
-    const c = checkAdminRouteNoRoleCheck(relPath, routePath, text);
+    const c = checkAdminRouteNoRoleCheck(relPath, routePath, stripped);
     if (c) findings.push(c);
   }
 

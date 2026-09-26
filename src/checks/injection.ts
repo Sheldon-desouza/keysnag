@@ -11,7 +11,7 @@ import type { Check, CheckContext, CheckResult, Finding, Severity } from "../typ
 
 const pexec = promisify(execFile);
 
-const SKIP_DIRS = new Set(["node_modules", ".git", "dist", ".next", "build", ".claude", ".vercel", "coverage", ".turbo", "out"]);
+const SKIP_DIRS = new Set(["node_modules", ".git", "dist", ".next", "build", ".claude", ".vercel", "coverage", ".turbo", "out", "docs"]);
 
 const SKIP_EXTS = new Set([
   ".png", ".jpg", ".jpeg", ".gif", ".webp", ".ico", ".svg", ".woff", ".woff2",
@@ -65,6 +65,107 @@ function isRequestDerived(lines: string[], lineIdx: number): boolean {
   return false;
 }
 
+// tokens that mark a value as coming from an LLM call/response, so a dangerous_html
+// sink fed by model output is treated with the same weight as request-derived input.
+const LLM_TOKEN = /\b(openai|anthropic|@google\/generative|generateText|streamText|chat\.completions|messages\.create|choices\[0\]|llmResponse|aiResponse|completion\.)\b/i;
+
+function isLLMDerived(lines: string[], lineIdx: number): boolean {
+  const windowStart = Math.max(0, lineIdx - 10);
+  for (let i = windowStart; i <= lineIdx; i++) {
+    if (LLM_TOKEN.test(lines[i])) return true;
+  }
+  return false;
+}
+
+/** Whether `value` is a self-contained string literal (single/double/backtick, no
+ * template interpolation), i.e. content the author wrote, not attacker data. */
+function isPureStringLiteral(value: string): boolean {
+  if (/^'(?:[^'\\]|\\.)*'$/.test(value)) return true;
+  if (/^"(?:[^"\\]|\\.)*"$/.test(value)) return true;
+  if (/^`(?:[^`\\]|\\.)*`$/.test(value) && !value.includes("${")) return true;
+  return false;
+}
+
+/** The Next.js JSON-LD idiom: `__html: JSON.stringify(...)`. Always safe. */
+function isJsonStringifyCall(value: string): boolean {
+  return /^JSON\.stringify\s*\(/.test(value);
+}
+
+/** Whether `ident` was assigned from a request-derived expression within the ~10
+ * lines above `lineIdx`. Tighter than isRequestDerived: only matches an actual
+ * assignment to that identifier, never an incidental substring match elsewhere
+ * on the line (which is what made ssrf fire on fixed URLs whose path happened to
+ * contain a word like "token"). */
+function isIdentRequestDerived(ident: string, lines: string[], lineIdx: number): boolean {
+  const windowStart = Math.max(0, lineIdx - 10);
+  const assignRe = new RegExp(`\\b(?:const|let|var)\\s+${ident}\\s*=`);
+  for (let i = windowStart; i < lineIdx; i++) {
+    if (assignRe.test(lines[i]) && REQUEST_TOKEN.test(lines[i])) return true;
+  }
+  return false;
+}
+
+/**
+ * Whether the SSRF call's URL argument is actually built from a request-derived
+ * value that forms the HOST (not just a path segment). Returns the derived
+ * identifier's name if so, otherwise null (meaning: do not fire ssrf here).
+ *
+ * Deliberately excludes:
+ *  - pure string literals (no interpolation at all)
+ *  - template literals that start with "/" (a relative path on the caller's own
+ *    origin, at most path injection, never SSRF)
+ *  - template literals with any fixed literal text before the first `${...}`
+ *    (a fixed host/origin; the request-derived part is only a path segment)
+ *
+ * Requires actual evidence of request-derivation (isIdentRequestDerived), not
+ * naming alone: a first pass also fired on any bare `url`/`endpoint`/`target`-
+ * named parameter with no visible local assignment, which lit up shared HTTP
+ * helpers (downloadReport(url), fetchWithProgress(url, ...), a fixed ENDPOINT
+ * constant assigned outside the 10-line lookback window) that take a URL by
+ * design and are never given attacker input at that call site. Per the design
+ * principle "precision over recall for anything that blocks", a variable name
+ * alone is not enough signal to fire critical.
+ */
+function ssrfHostSource(urlArg: string, lines: string[], lineIdx: number): string | null {
+  const arg = urlArg.trim();
+
+  // whole-literal string (no template at all) is never host-forming
+  if (/^["'](?:[^"'\\]|\\.)*["']$/.test(arg)) return null;
+
+  const isHostish = (ident: string) => isIdentRequestDerived(ident, lines, lineIdx);
+
+  const tmplMatch = arg.match(/^`([^`]*)`$/);
+  if (tmplMatch) {
+    const body = tmplMatch[1];
+    if (body.startsWith("/")) return null; // relative URL, same-origin
+    const leadingInterp = body.match(/^\$\{([^}]+)\}/);
+    if (!leadingInterp) return null; // fixed literal prefix (fixed origin) or no interpolation at all
+    const varExpr = leadingInterp[1].trim();
+    const bareIdent = varExpr.match(/^[A-Za-z_$][\w$]*/)?.[0];
+    if (!bareIdent) return null;
+    return isHostish(bareIdent) ? bareIdent : null;
+  }
+
+  const newUrlMatch = arg.match(/^new\s+URL\s*\(\s*([A-Za-z_$][\w$]*)/);
+  if (newUrlMatch) {
+    const ident = newUrlMatch[1];
+    return isHostish(ident) ? ident : null;
+  }
+
+  const bareMatch = arg.match(/^([A-Za-z_$][\w$]*)$/);
+  if (bareMatch) {
+    const ident = bareMatch[1];
+    return isHostish(ident) ? ident : null;
+  }
+
+  return null;
+}
+
+/** "use client" directive near the top of the file (Next.js client component). */
+function hasUseClientDirective(text: string): boolean {
+  return /^\s*["']use client["']\s*;?\s*$/m.test(text.slice(0, 1000));
+}
+
 interface RawFinding {
   id: string;
   title: string;
@@ -77,6 +178,7 @@ interface RawFinding {
 function scanText(text: string): RawFinding[] {
   const lines = text.split("\n");
   const found: RawFinding[] = [];
+  const isUseClientFile = hasUseClientDirective(text);
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
@@ -101,14 +203,18 @@ function scanText(text: string): RawFinding[] {
       || line.match(/\.(innerHTML|outerHTML)\s*=\s*([^;]+);?/)
       || line.match(/\.insertAdjacentHTML\s*\(\s*["'][^"']+["']\s*,\s*([^)]+)\)/);
     if (htmlMatch) {
-      const value = (htmlMatch[2] ?? htmlMatch[1] ?? "").trim();
-      const isLiteral = /^["'`][^"'`]*["'`]$/.test(value) || value === "";
-      if (!isLiteral) {
+      const value = (htmlMatch[2] ?? htmlMatch[1] ?? "").trim().replace(/;$/, "").trim();
+      const isSafe = value === ""
+        || isPureStringLiteral(value) // e.g. el.innerHTML = '<svg width="28">...</svg>'
+        || isJsonStringifyCall(value); // e.g. __html: JSON.stringify(jsonLd) — the Next.js JSON-LD idiom
+      if (!isSafe) {
+        const derived = isRequestDerived(lines, i) || isLLMDerived(lines, i);
         found.push({
           id: "injection.dangerous_html",
           title: "Raw HTML rendered from a non-literal value",
-          severity: "high",
-          detail: "HTML is injected via dangerouslySetInnerHTML/innerHTML/outerHTML/insertAdjacentHTML from a variable, which is a stored or reflected XSS sink if the value ever contains user input.",
+          severity: derived ? "high" : "medium",
+          detail: "HTML is injected via dangerouslySetInnerHTML/innerHTML/outerHTML/insertAdjacentHTML from a variable, which is a stored or reflected XSS sink if the value ever contains user input."
+            + (derived ? " The value appears to come from the request or an LLM response." : " No request/LLM source was detected nearby; confirm the value can never contain user input before relying on this."),
           line: i + 1,
           fix: "Sanitise the HTML with a library such as DOMPurify before rendering, or render as plain text/React children instead of raw HTML.",
         });
@@ -116,17 +222,22 @@ function scanText(text: string): RawFinding[] {
     }
 
     // --- injection.eval ---
-    // eval(...) / new Function(...) / vm.runIn*(...). Skip the word "evaluate" and comments.
+    // eval(...) / new Function(...) / vm.runIn*(...). Skip the word "evaluate", Playwright's
+    // $eval/$$eval/.evaluate(, and comments.
     const commentStripped = line.replace(/\/\/.*$/, "");
-    if (/(?<!\w)eval\s*\(/.test(commentStripped.replace(/\bevaluate\b/g, ""))
+    const evalCandidate = commentStripped
+      .replace(/\$\$?eval\s*\(/g, "") // Playwright page.$eval(/page.$$eval(
+      .replace(/\.evaluate\s*\(/g, "") // Playwright page.evaluate(
+      .replace(/\bevaluate\b/g, "");
+    if (/(?<!\w)eval\s*\(/.test(evalCandidate)
       || /\bnew\s+Function\s*\(/.test(commentStripped)
       || /\bvm\.runIn\w*\s*\(/.test(commentStripped)) {
       const derived = isRequestDerived(lines, i);
       found.push({
         id: "injection.eval",
         title: "Dynamic code execution via eval/new Function/vm.runIn*",
-        severity: derived ? "critical" : "high",
-        detail: "Code is executed dynamically from a string, which allows arbitrary code execution if any part of that string is attacker-controlled." + (derived ? " The value appears to come from the request." : ""),
+        severity: derived ? "critical" : "medium",
+        detail: "Code is executed dynamically from a string, which allows arbitrary code execution if any part of that string is attacker-controlled." + (derived ? " The value appears to come from the request." : " No request-derived value was detected nearby; still avoid dynamic execution."),
         line: i + 1,
         fix: "Remove the dynamic eval/new Function/vm.runIn* call; parse the input as data (JSON.parse) or use an explicit allowlisted dispatch instead of executing code.",
       });
@@ -146,8 +257,8 @@ function scanText(text: string): RawFinding[] {
         found.push({
           id: "injection.command",
           title: "Shell command built with string interpolation",
-          severity: derived ? "critical" : "high",
-          detail: `A shell command is built by interpolating a variable into ${fn}(), which allows command injection if any part of it is attacker-controlled.` + (derived ? " The value appears to come from the request." : ""),
+          severity: derived ? "critical" : "medium",
+          detail: `A shell command is built by interpolating a variable into ${fn}(), which allows command injection if any part of it is attacker-controlled.` + (derived ? " The value appears to come from the request." : " No request-derived value was detected nearby (e.g. a build script reading argv); still prefer an argument array over shell interpolation."),
           line: i + 1,
           fix: "Use execFile/spawn with an argument array (no shell:true) instead of building a shell command string, and never interpolate request data into a command string.",
         });
@@ -155,11 +266,15 @@ function scanText(text: string): RawFinding[] {
     }
 
     // --- injection.ssrf ---
-    // fetch/axios/got/http.get whose URL contains a request-derived token.
+    // fetch/axios/got/http.get whose URL is *built from* a request-derived value
+    // (the value forms the host, not just a path segment). Only in server-side
+    // files: "use client" components calling their own API with a relative URL
+    // are same-origin, not SSRF.
     const netCall = line.match(/\b(fetch|axios(?:\.\w+)?|got|https?\.get)\s*\(\s*([^,)]+)/);
-    if (netCall) {
+    if (netCall && !isUseClientFile) {
       const urlArg = netCall[2];
-      if (REQUEST_TOKEN.test(urlArg) || isRequestDerived(lines, i)) {
+      const hostIdent = ssrfHostSource(urlArg, lines, i);
+      if (hostIdent) {
         const hasGuard = /(startsWith|allowlist|allowList|ALLOWED_HOSTS|new URL\([^)]*\)\.hostname\s*===)/.test(
           lines.slice(Math.max(0, i - 5), i + 1).join("\n"),
         );

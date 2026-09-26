@@ -67,6 +67,24 @@ function isEnvFile(relPath: string): boolean {
   return base === ".env" || base === ".env.local" || /^\.env\./.test(base);
 }
 
+/** Source-code files, plus the specific config filenames these rules need: skip markdown/docs
+ * (vulnerable EXAMPLE snippets) and keysnag's own skill docs. */
+const SOURCE_EXTS = new Set([".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".mts", ".cts"]);
+const DOC_EXTS = new Set([".md", ".mdx", ".txt"]);
+
+function isScannableConfigFile(relPath: string): boolean {
+  const norm = relPath.replace(/\\/g, "/");
+  if (norm === ".claude" || norm.startsWith(".claude/") || norm.includes("/.claude/")) return false;
+  if (norm === "docs" || norm.startsWith("docs/") || norm.includes("/docs/")) return false;
+  const ext = extname(norm);
+  if (DOC_EXTS.has(ext)) return false;
+  if (isEnvFile(norm) || ext === ".env") return true;
+  const base = norm.split("/").pop() ?? "";
+  if (/^next\.config\.(js|ts|mjs|cjs)$/.test(base)) return true;
+  if (base === "vercel.json") return true;
+  return SOURCE_EXTS.has(ext);
+}
+
 /** "use client" directive, or anything shipped verbatim from public/. */
 function isClientComponent(relPath: string, text: string): boolean {
   const norm = relPath.replace(/\\/g, "/");
@@ -146,13 +164,29 @@ function rule_publicEnvSecret(relPath: string, text: string, findings: Finding[]
   }
 }
 
-const SERVICE_ROLE_REF = /\bSUPABASE_SERVICE_ROLE_KEY\b|\bservice_role\b/;
+// Actual USE only, not a bare name string (e.g. a UI label listing env var names):
+// process.env.SUPABASE_SERVICE_ROLE_KEY / process.env.*SERVICE_ROLE*, or that value passed
+// into createClient(...), or a JWT literal whose decoded payload role is service_role.
+const SERVICE_ROLE_ENV_USE = /process\.env\.[A-Z0-9_]*SERVICE_ROLE[A-Z0-9_]*\b/;
+const CREATE_CLIENT_SERVICE_ROLE = /createClient\s*\([^)]*\b[A-Za-z0-9_]*[Ss]ervice_?[Rr]ole[A-Za-z0-9_]*\b[^)]*\)/;
+const JWT_LITERAL = /eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/;
+
+function isServiceRoleUse(line: string): boolean {
+  if (SERVICE_ROLE_ENV_USE.test(line)) return true;
+  if (CREATE_CLIENT_SERVICE_ROLE.test(line)) return true;
+  const jwt = line.match(JWT_LITERAL);
+  if (jwt) {
+    const payload = decodeJwtPayload(jwt[0]);
+    if (payload?.["role"] === "service_role") return true;
+  }
+  return false;
+}
 
 function rule_serviceRoleInClient(relPath: string, text: string, findings: Finding[]) {
   if (!isClientComponent(relPath, text)) return;
   const lines = text.split("\n");
   for (let i = 0; i < lines.length; i++) {
-    if (SERVICE_ROLE_REF.test(lines[i])) {
+    if (isServiceRoleUse(lines[i])) {
       findings.push({
         id: "config.service_role_in_client",
         check: "config",
@@ -356,6 +390,9 @@ const configCheck: Check = {
       }
       if (!info.isFile() || info.size > MAX_FILE_BYTES) continue;
 
+      const relPath = relative(repoDir, filePath);
+      if (!isScannableConfigFile(relPath)) continue;
+
       let text: string;
       try {
         text = await readFile(filePath, "utf8");
@@ -363,8 +400,6 @@ const configCheck: Check = {
         continue;
       }
       if (text.includes("\u0000")) continue;
-
-      const relPath = relative(repoDir, filePath);
 
       rule_publicEnvSecret(relPath, text, findings);
       rule_serviceRoleInClient(relPath, text, findings);

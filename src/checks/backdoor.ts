@@ -1,6 +1,6 @@
 // backdoor: hunts for deliberately or accidentally hidden covert-access code left by
 // an AI coding agent: obfuscated eval chains, hardcoded bypass conditionals, auth-skip
-// flags, process.env dumped to a response, unexpected outbound hosts, and stray
+// flags, process.env dumped to a response, exfiltration/tunnel outbound hosts, and stray
 // prompt-injection artifacts. Repo-static only, requires: [].
 import { readFile, readdir, stat } from "node:fs/promises";
 import { join, relative, extname } from "node:path";
@@ -16,6 +16,8 @@ const SKIP_EXTS = new Set([
   ".ttf", ".eot", ".pdf", ".zip", ".gz", ".tgz", ".mp4", ".mov", ".mp3",
   ".wasm", ".node", ".lock", ".map",
 ]);
+/** Only scan actual source code, per the calibration fix: never .md/.claude/docs. */
+const SOURCE_EXTS = new Set([".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".mts", ".cts"]);
 const MAX_FILE_BYTES = 2 * 1024 * 1024;
 
 async function walkRepo(root: string): Promise<string[]> {
@@ -62,51 +64,99 @@ async function getScanFiles(repoDir: string, changedFiles: string[] | undefined)
 /** Skip test/fixture/docs/markdown paths, per acceptance criteria. */
 function isSkippable(relPath: string): boolean {
   const norm = relPath.replace(/\\/g, "/").toLowerCase();
-  if (/\.(md|mdx)$/.test(norm)) return true;
+  if (!SOURCE_EXTS.has(extname(norm))) return true;
+  if (/\.(md|mdx|txt)$/.test(norm)) return true;
   if (norm.includes("/__tests__/") || norm.includes("/test/") || norm.includes("/tests/")) return true;
   if (/\.(test|spec)\.[jt]sx?$/.test(norm)) return true;
-  if (norm.includes("/docs/")) return true;
+  if (norm.includes("/docs/") || norm.startsWith("docs/")) return true;
+  if (norm.includes("/.claude/") || norm.startsWith(".claude/")) return true;
   return false;
 }
 
 const OBFUSCATED_EVAL = /\b(?:eval|new\s+Function|Function)\s*\(\s*atob\(\s*["'`]([A-Za-z0-9+/=]{64,})["'`]\s*\)\s*\)/;
 
-const LITERAL_BYPASS = /\b(password|passwd|token|secret|apiKey|role)\b\s*(?:===|==)\s*["'`]([^"'`]+)["'`]/i;
-const SECRET_IDENT = /password|passwd|token|secret|apikey/i;
+// (B) calibration fix: role-literal comparisons (m.role === 'user', c.role === 'performance')
+// are legitimate discriminated-union/enum checks, not backdoors. Fire only on an actual
+// credential-shaped identifier compared to a string literal.
+const LITERAL_BYPASS = /\b(password|passwd|pin|secret|masterKey|apiKey)\b\s*(?:===|==|!==|!=)\s*["'`]([^"'`]+)["'`]/i;
 
 const AUTH_SKIP_IDENT = /\b(SKIP_AUTH|BYPASS_AUTH|DISABLE_AUTH|NO_AUTH)\b/;
 const AUTH_SKIP_USAGE = new RegExp(
   `(if\\s*\\([^)]*${AUTH_SKIP_IDENT.source}[^)]*\\)|${AUTH_SKIP_IDENT.source}\\s*(?:\\|\\||&&)|(?:\\|\\||&&)\\s*${AUTH_SKIP_IDENT.source})`,
 );
 
+// (M) calibration fix: `const env = { ...parseEnvFile(p), ...process.env }` is a local
+// merge, not a dump. Fire only when process.env is actually serialised or sent: passed to
+// JSON.stringify, passed into a json response call, or logged.
+// A single named property read (process.env.INTERNAL_JOB_KEY) is normal and must not
+// match; only the whole process.env object, not one property off it, is a dump.
+const WHOLE_PROCESS_ENV = "process\\.env\\b(?!\\s*[.\\[])";
 const ENV_DUMP = new RegExp(
   [
-    "\\.\\.\\.process\\.env\\b",
-    "JSON\\.stringify\\(\\s*process\\.env\\s*\\)",
-    "(?:res\\.json|NextResponse\\.json|console\\.log)\\(\\s*process\\.env\\b",
+    `JSON\\.stringify\\([^)]*${WHOLE_PROCESS_ENV}`,
+    `(?:res\\.json|NextResponse\\.json|Response\\.json)\\([^)]*${WHOLE_PROCESS_ENV}`,
+    `console\\.log\\(\\s*${WHOLE_PROCESS_ENV}\\s*\\)`,
   ].join("|"),
 );
 
 const OUTBOUND_CALL = /\b(?:fetch|axios(?:\.\w+)?|https?\.request)\s*\(\s*["'`](https?:\/\/[^"'`\s)]+)["'`]/g;
 
-const OUTBOUND_ALLOWLIST = [
-  "supabase.co", "stripe.com", "openai.com", "anthropic.com", "googleapis.com",
-  "google.com", "github.com", "vercel.com", "sentry.io", "posthog.com",
-  "resend.com", "amazonaws.com", "cloudflare.com", "twilio.com", "sendgrid.net",
-  "mailgun.net", "slack.com", "discord.com", "notion.so", "hubspot.com", "api.clarity.ms",
-];
+// (C) calibration fix: the provider allowlist approach flags every legitimate third-party
+// integration (fal.run, api.perplexity.ai, api.amazon.com...) and misses real exfil hosts
+// on the allowlist's blind side. Replace with a positive list of exfil/tunnel indicators.
+const IP_LITERAL_HOST = /^(\d{1,3}\.){3}\d{1,3}$/;
+const TUNNEL_HOST = /(ngrok|localtunnel|serveo|trycloudflare)/i;
+const DEAD_DROP_HOST = /(pastebin|hastebin|webhook\.site|requestbin|pipedream\.net|beeceptor)/i;
+const COLLABORATOR_HOST = /(burpcollaborator|interact\.sh|\boast\b)/i;
+const SHORTENER_HOSTS = new Set(["bit.ly", "tinyurl.com", "t.co"]);
 
-function isAllowlistedHost(host: string): boolean {
-  const h = host.toLowerCase();
-  if (h === "localhost" || h === "127.0.0.1") return true;
-  return OUTBOUND_ALLOWLIST.some((allowed) => h === allowed || h.endsWith(`.${allowed}`));
+/** Best-effort: is this a client-side/browser file, where a Discord webhook or a
+ * shortener call is a different (still worth-a-look, but not this check's) risk shape? */
+function isClientFile(text: string, relPath: string): boolean {
+  const head = text.slice(0, 400);
+  if (/["'`]use client["'`]/.test(head)) return true;
+  const norm = relPath.toLowerCase();
+  return norm.includes("/components/") && !norm.includes("/api/");
 }
 
-const PROMPT_INJECTION_ARTIFACT = /ignore\s+(?:all\s+)?previous\s+instructions|you are now|system prompt/i;
+function classifySuspiciousOutbound(
+  hostname: string,
+  pathname: string,
+  relPath: string,
+  clientFile: boolean,
+): string | null {
+  if (IP_LITERAL_HOST.test(hostname)) return `raw IP-literal host "${hostname}"`;
+  if (TUNNEL_HOST.test(hostname)) return `tunnel/relay host "${hostname}"`;
+  if (DEAD_DROP_HOST.test(hostname)) return `paste/dead-drop host "${hostname}"`;
+  if (hostname === "api.telegram.org" && pathname.startsWith("/bot")) {
+    return `Telegram bot API call "${hostname}${pathname}"`;
+  }
+  if (COLLABORATOR_HOST.test(hostname)) return `out-of-band collaborator host "${hostname}"`;
+  if (hostname.endsWith(".onion")) return `Tor hidden-service host "${hostname}"`;
+
+  const base = relPath.toLowerCase().split("/").pop() ?? "";
+  const looksLikeNotifier = base.includes("notify") || base.includes("alert");
+  if (!clientFile && !looksLikeNotifier && hostname === "discord.com" && pathname.startsWith("/api/webhooks")) {
+    return `Discord webhook host "${hostname}${pathname}"`;
+  }
+  if (!clientFile && SHORTENER_HOSTS.has(hostname)) return `URL-shortener host "${hostname}"`;
+
+  return null;
+}
+
+// (F) calibration fix: narrow to the actual attack phrase, and only inside a string
+// literal (a comment saying "system prompt" or a docstring about "the assistant's system
+// prompt" is not an injection artifact).
+const PROMPT_INJECTION_PHRASE =
+  /ignore\s+(?:all\s+)?(?:previous|prior|above)\s+instructions|disregard\s+(?:all\s+)?(?:previous|prior)\s+instructions/i;
+const PROMPT_INJECTION_ARTIFACT = new RegExp(
+  `["'\`][^"'\`\\n]*(?:${PROMPT_INJECTION_PHRASE.source})[^"'\`\\n]*["'\`]`,
+  "i",
+);
 
 const check: Check = {
   name: "backdoor",
-  description: "Finds obfuscated eval chains, hardcoded bypass conditionals, auth-skip flags, process.env dumps, unexpected outbound hosts, and prompt-injection artifacts left in generated code.",
+  description: "Finds obfuscated eval chains, hardcoded bypass conditionals, auth-skip flags, process.env dumps, suspicious exfiltration/tunnel outbound hosts, and prompt-injection artifacts left in generated code.",
   requires: [],
   async run(ctx: CheckContext): Promise<CheckResult> {
     const findings: Finding[] = [];
@@ -127,6 +177,7 @@ const check: Check = {
       }
       if (text.includes("\u0000")) continue;
 
+      const clientFile = isClientFile(text, relPath);
       const lines = text.split("\n");
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
@@ -147,11 +198,10 @@ const check: Check = {
         const literalMatch = line.match(LITERAL_BYPASS);
         if (literalMatch) {
           const ident = literalMatch[1];
-          const critical = SECRET_IDENT.test(ident);
           findings.push({
             id: "backdoor.literal_bypass",
             check: "backdoor",
-            severity: critical ? "critical" : "high",
+            severity: "critical",
             title: `Hardcoded bypass comparing ${ident} to a string literal`,
             detail: `This line grants or denies access by comparing "${ident}" to a hardcoded string literal ("${literalMatch[2]}"). This is a classic hidden backdoor or master-password pattern: anyone who reads the source (or the compiled bundle) can bypass real authentication.`,
             location: loc,
@@ -177,7 +227,7 @@ const check: Check = {
             check: "backdoor",
             severity: "high",
             title: "process.env dumped into a response or log",
-            detail: "This line spreads or serializes the entire process.env object into a response, log, or console output. Every server secret (DB URLs, API keys, service_role keys) becomes visible to whoever can read that output.",
+            detail: "This line serialises or sends the entire process.env object into a response or console output. Every server secret (DB URLs, API keys, service_role keys) becomes visible to whoever can read that output.",
             location: loc,
             fix: "Never serialize process.env wholesale. Return only the specific, non-secret values the caller needs.",
           });
@@ -185,21 +235,25 @@ const check: Check = {
 
         OUTBOUND_CALL.lastIndex = 0;
         for (const m of line.matchAll(OUTBOUND_CALL)) {
-          let host: string;
+          let hostname: string;
+          let pathname: string;
           try {
-            host = new URL(m[1]).hostname;
+            const parsed = new URL(m[1]);
+            hostname = parsed.hostname.toLowerCase();
+            pathname = parsed.pathname;
           } catch {
             continue;
           }
-          if (isAllowlistedHost(host)) continue;
+          const why = classifySuspiciousOutbound(hostname, pathname, relPath, clientFile);
+          if (!why) continue;
           findings.push({
-            id: "backdoor.unexpected_outbound",
+            id: "backdoor.suspicious_outbound",
             check: "backdoor",
-            severity: "medium",
-            title: `Outbound call to unexpected host "${host}"`,
-            detail: `This server code sends a request to "${host}", which is not one of the well-known providers keysnag recognises (Supabase, Stripe, OpenAI, Anthropic, Vercel, etc.). This may be legitimate, or it may be data exfiltration to a host slipped in by a compromised dependency or a malicious edit.`,
+            severity: "high",
+            title: `Outbound call to a suspicious host (${why})`,
+            detail: `This server code sends a request to ${why}, which matches a known exfiltration or tunnelling pattern (raw IP literal, ngrok-style tunnel, paste/dead-drop site, bot/webhook relay, out-of-band collaborator, .onion, or URL shortener). This may be data exfiltration slipped in by a compromised dependency or a malicious edit.`,
             location: loc,
-            fix: `Verify this destination is intentional. If it is a legitimate third-party integration, ignore this warning; if not, remove the call and rotate any credentials it may have sent.`,
+            fix: "Verify this destination is intentional and expected. If it is not, remove the call, rotate any credentials it may have sent, and audit how it got into the diff.",
           });
         }
 
@@ -207,11 +261,11 @@ const check: Check = {
           findings.push({
             id: "backdoor.prompt_injection_artifact",
             check: "backdoor",
-            severity: "medium",
-            title: "Prompt-injection artifact left in source",
-            detail: "This line contains text like \"ignore previous instructions\", \"you are now\", or \"system prompt\" inside application source, not a test fixture. This is either a leftover prompt-injection payload from an untrusted input, or an artifact of an AI agent that was manipulated while generating this code.",
+            severity: "low",
+            title: "Prompt-injection attack phrase left in a string literal",
+            detail: "This line contains a string literal with a classic prompt-injection attack phrase (\"ignore previous instructions\", \"disregard prior instructions\"). This is either a leftover payload from an untrusted input that was captured into source, or an artifact of an AI agent that was manipulated while generating this code.",
             location: loc,
-            fix: "Review how this string is used. If it is meant to defend against prompt injection, move it out of comments/dead code into an actual guard; if it is a leftover payload, remove it and audit how it got there.",
+            fix: "Review how this string is used. If it is meant to defend against prompt injection, move it out of dead code into an actual guard; if it is a leftover payload, remove it and audit how it got there.",
           });
         }
       }

@@ -17,6 +17,9 @@ const SKIP_EXTS = new Set([
 ]);
 const MAX_FILE_BYTES = 2 * 1024 * 1024;
 
+// only worth reading as source; matches injection.ts's list.
+const SOURCE_EXTS = new Set([".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".mts", ".cts"]);
+
 async function walkRepo(root: string): Promise<string[]> {
   const results: string[] = [];
   async function walk(dir: string) {
@@ -60,15 +63,21 @@ async function getScanFiles(repoDir: string, changedFiles: string[] | undefined)
 
 function isSkippable(relPath: string): boolean {
   const norm = relPath.replace(/\\/g, "/").toLowerCase();
-  if (/\.(md|mdx)$/.test(norm)) return true;
+  if (!SOURCE_EXTS.has(extname(norm))) return true;
   if (norm.includes("/__tests__/") || norm.includes("/test/") || norm.includes("/tests/")) return true;
   if (/\.(test|spec)\.[jt]sx?$/.test(norm)) return true;
   if (norm.includes("/docs/")) return true;
+  if (norm.includes("/.claude/")) return true;
   return false;
 }
 
 const LLM_IMPORT = /from\s+["'](openai|@anthropic-ai\/sdk|@google\/generative-ai|ai|groq-sdk|cohere-ai|@mistralai)["']|require\(\s*["'](openai|@anthropic-ai\/sdk|@google\/generative-ai|ai|groq-sdk|cohere-ai|@mistralai)["']\s*\)/;
 const LLM_URL = /api\.openai\.com|api\.anthropic\.com|generativelanguage\.googleapis\.com/;
+
+// Evidence an LLM is actually called IN THIS FILE: an SDK import/URL (above), or
+// one of the conventional call sites, so unsafe_output_render never fires on a
+// file that merely happens to hold a variable shaped like an LLM result name.
+const LLM_CALL_SIGNAL_RE = /generateText|streamText|messages\.create|chat\.completions\.create/;
 
 const AUTH_SIGNAL = /getUser\(|getSession\(|auth\(\)|getServerSession\(|requireAuth|withAuth|authorization/i;
 
@@ -210,17 +219,26 @@ const check: Check = {
       if (text.includes("\u0000")) continue;
       if (!UNSAFE_RENDER_CALL.test(text)) continue;
 
+      // Require an actual LLM call/SDK in THIS file: without it, a variable that
+      // merely happens to be named "answer" or "reply" (e.g. a static FAQ/JSON-LD
+      // page) must never trip this rule.
+      const hasLlmInFile = LLM_IMPORT.test(text) || LLM_URL.test(text) || LLM_CALL_SIGNAL_RE.test(text);
+      if (!hasLlmInFile) continue;
+
       const idents = collectLlmOutputIdents(text);
       if (idents.size === 0) continue;
       if (SANITIZER_SIGNAL.test(text)) continue;
 
       // The identifier check above already established this file both holds an
       // LLM-output-shaped variable and has no sanitiser signal anywhere; report
-      // at the first line that renders something as HTML.
+      // at the first line that renders something as HTML, excluding the
+      // Next.js JSON-LD idiom (__html: JSON.stringify(...)), which is never an
+      // LLM output render.
       const lines = text.split("\n");
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
         if (!UNSAFE_RENDER_CALL.test(line)) continue;
+        if (/__html\s*:\s*JSON\.stringify\(/.test(line)) continue;
         findings.push({
           id: "ai.unsafe_output_render",
           check: "ai-endpoints",

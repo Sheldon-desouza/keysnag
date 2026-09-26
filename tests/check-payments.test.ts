@@ -54,6 +54,24 @@ test("safe.ts (verified webhook + server-side price lookup + idempotencyKey) is 
   assert.deepEqual(hits, [], `expected no findings on safe.ts, got: ${JSON.stringify(hits)}`);
 });
 
+test("docs-example.md (markdown showing the vulnerable snippet) is skipped: source-extensions-only", async () => {
+  const findings = await runPayments();
+  const hits = findings.filter((f) => f.location?.includes("docs-example.md"));
+  assert.deepEqual(hits, [], `expected no findings on docs-example.md, got: ${JSON.stringify(hits)}`);
+});
+
+test("safe-shopify-webhook route (verifies via a sibling lib import) is clean, and the lib file itself never fires", async () => {
+  const findings = await runPayments();
+  const hits = findings.filter((f) => f.location?.includes("safe-shopify-webhook"));
+  assert.deepEqual(hits, [], `expected no findings under safe-shopify-webhook, got: ${JSON.stringify(hits)}`);
+});
+
+test("safe-tiktok-webhook route (verifies via a sibling lib import + x-tiktok-signature) is clean, and the lib file itself never fires", async () => {
+  const findings = await runPayments();
+  const hits = findings.filter((f) => f.location?.includes("safe-tiktok-webhook"));
+  assert.deepEqual(hits, [], `expected no findings under safe-tiktok-webhook, got: ${JSON.stringify(hits)}`);
+});
+
 test("an empty directory yields no findings", async () => {
   const dir = await mkdtemp(join(tmpdir(), "keysnag-payments-empty-"));
   try {

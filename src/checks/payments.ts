@@ -66,15 +66,59 @@ function isTestFile(relPath: string): boolean {
   return false;
 }
 
-const CONSTRUCT_EVENT = /constructEvent(Async)?\s*\(/;
+/** Source-code files only: skip markdown/docs (vulnerable EXAMPLE snippets) and keysnag's own skill docs. */
+const SOURCE_EXTS = new Set([".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".mts", ".cts"]);
+const DOC_EXTS = new Set([".md", ".mdx", ".txt"]);
+
+function isScannableSourceFile(relPath: string): boolean {
+  const norm = relPath.replace(/\\/g, "/");
+  if (norm === ".claude" || norm.startsWith(".claude/") || norm.includes("/.claude/")) return false;
+  if (norm === "docs" || norm.startsWith("docs/") || norm.includes("/docs/")) return false;
+  const ext = extname(norm);
+  if (DOC_EXTS.has(ext)) return false;
+  return SOURCE_EXTS.has(ext);
+}
+
+/** Only ROUTE handlers get checked for webhook verification, never a lib file that does the verifying. */
+const ROUTE_HANDLER_EXPORT = /export\s+(async\s+)?function\s+(POST|GET|PUT|PATCH|DELETE)\s*\(/;
+const VERIFY_CALL = /constructEvent(Async)?\s*\(|createHmac\s*\(|timingSafeEqual\s*\(|verifyWebhook\s*\(|verifySignature\s*\(|verifyHmac\s*\(/i;
+const VERIFY_HEADER_OR_WORD = /x-shopify-hmac|x-tiktok-signature|stripe-signature|\bhmac\b/i;
 const WEBHOOK_SIGNAL = /webhook/i;
 const STRIPE_EVENT_SIGNAL = /stripe-signature|stripe\.webhooks|event\.type\s*===?\s*['"]/i;
 
+const IMPORT_CLAUSE = /import\s+([^;]+?)\s+from\s*['"][^'"]+['"]/g;
+/** Names imported by any `import ... from '...'` clause: default, named, or `as`-aliased. */
+function importedNames(text: string): string[] {
+  const names: string[] = [];
+  IMPORT_CLAUSE.lastIndex = 0;
+  for (const m of text.matchAll(IMPORT_CLAUSE)) {
+    const clause = m[1];
+    const named = clause.match(/\{([^}]*)\}/);
+    if (named) {
+      for (const part of named[1].split(",")) {
+        const n = part.trim().split(/\s+as\s+/i).pop()?.trim();
+        if (n) names.push(n);
+      }
+    }
+    const withoutNamed = clause.replace(/\{[^}]*\}/, "").replace(/\*\s+as\s+\w+/, "");
+    const defaultMatch = withoutNamed.match(/^\s*([A-Za-z_$][\w$]*)/);
+    if (defaultMatch) names.push(defaultMatch[1]);
+  }
+  return names;
+}
+
+/** A route that imports a verify/validate-webhook/signature/hmac helper is treated as verified. */
+const VERIFY_IMPORT_NAME = /verify|validate.*(webhook|signature|hmac)/i;
+function hasVerifyingImport(text: string): boolean {
+  return importedNames(text).some((n) => VERIFY_IMPORT_NAME.test(n));
+}
+
 function rule_webhookUnverified(relPath: string, text: string, findings: Finding[]) {
+  if (!ROUTE_HANDLER_EXPORT.test(text)) return; // never flag a lib file, only actual route handlers
   const norm = relPath.replace(/\\/g, "/");
   const isCandidate = WEBHOOK_SIGNAL.test(norm) || STRIPE_EVENT_SIGNAL.test(text);
   if (!isCandidate) return;
-  if (CONSTRUCT_EVENT.test(text)) return; // signature is verified somewhere in the file
+  if (VERIFY_CALL.test(text) || VERIFY_HEADER_OR_WORD.test(text) || hasVerifyingImport(text)) return; // verified somewhere in the file
 
   const lines = text.split("\n");
   const handlerLine = lines.findIndex((l) => /export\s+(async\s+)?function\s+POST/.test(l));
@@ -162,6 +206,7 @@ const paymentsCheck: Check = {
       if (!info.isFile() || info.size > MAX_FILE_BYTES) continue;
 
       const relPath = relative(repoDir, filePath);
+      if (!isScannableSourceFile(relPath)) continue;
       if (isTestFile(relPath)) continue;
 
       let text: string;

@@ -1,4 +1,4 @@
-// tests/registry.test.ts — src/checks/index.ts must export exactly the 12 shipped
+// tests/registry.test.ts — src/checks/index.ts must export exactly the 13 shipped
 // checks, each with a unique name, and each `requires` list must only name real
 // CheckContext keys (so a typo in a check's `requires` array is caught here, not
 // silently skipping the check forever at runtime).
@@ -19,10 +19,11 @@ const CHECK_CONTEXT_KEYS: ReadonlySet<keyof CheckContext> = new Set([
   "tokenB",
   "changedFiles",
   "allowOsv",
+  "privateTerms",
 ]);
 
-test("exactly 12 checks are registered", () => {
-  assert.equal(checks.length, 12);
+test("exactly 13 checks are registered", () => {
+  assert.equal(checks.length, 13);
 });
 
 test("every check has a unique name", () => {

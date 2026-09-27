@@ -1,4 +1,4 @@
-// allow.ts — the exceptions baseline, modelled on a production exceptions-baseline script:
+// allow.ts — the exceptions baseline, modelled on a strict exceptions-baseline pattern:
 // every suppressed finding must name why it's acceptable AND the control that bounds abuse.
 // An entry missing either is not a valid exception; the gate refuses to run rather than let
 // it through silently (see validateAllowList).
@@ -38,14 +38,14 @@ function isDottedPrefix(id) {
     return /^[a-z][a-z0-9-]*(\.[a-z0-9_]+)*\.$/.test(id);
 }
 function isWideOpenLocation(location) {
-    // Verify cycle 2: "**/*", "**/**", "*/**", "./**" are catch-alls too. A location is
+    // "**/*", "**/**", "*/**", "./**" are catch-alls too. A location is
     // wide open when it contains no literal path segment at all.
     return /^[\s*./\\]*$/.test(location);
 }
 /** Validates a raw allow array. Throws naming every entry that is missing a non-empty reason
  * and/or bound, has an empty or malformed id, or pairs a wide-open location ("**"/"*"/missing)
- * with anything less specific than a full concrete finding id — exactly like
- * an exceptions-baseline script refuses to run over an unannotated or unbounded exception. */
+ * with anything less specific than a full concrete finding id — an unannotated or unbounded
+ * exception is refused outright. */
 export function validateAllowList(entries, sourceLabel = "keysnag.config.json") {
     const bad = [];
     const result = [];

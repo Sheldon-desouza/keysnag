@@ -38,19 +38,19 @@ const AUTHZ_HEADER_RE = /authorization/i;
 const WRITE_RE = /\.(insert|update|delete|upsert|rpc)\(/;
 const IDENTITY_KEYS = ["userId", "user_id", "ownerId", "owner_id", "accountId"];
 const QUERY_FILTER_RE = /\.eq\(|where\s*\(|WHERE\s/i;
-// (C4/precision calibration, ledger item 13c) the bare word "admin" (an import path
+// the bare word "admin" (an import path
 // like @/lib/admin-utils, or the route path itself) is not a role check: require an
 // actual check call or comparison. The named helpers (requireAdmin(, checkAdmin(, ...)
 // are covered, plus any other identifier that carries "admin"/"role" AND is invoked as
 // a function (e.g. checkAdminEmail(user.email), a real check seen in a production app) so
 // this doesn't regress into re-matching a bare, uncalled mention.
-// Verify cycle 2: `\w*admin\w*\(` also matched `createAdminClient()` (a service
+// `\w*admin\w*\(` also matched `createAdminClient()` (a service
 // client, not a gate), silencing the rule on a route that only checked login. An
 // admin-named call counts only when it starts with a CHECK verb.
 const ADMIN_ROLE_CHECK_RE = /requireAdmin\(|assertAdmin\(|checkAdmin\(|isAdmin\(|is_admin\(|requireRole\(|\b(?:check|require|assert|ensure|verify|is|has|guard|validate)\w*admin\w*\s*\(|\.role\s*(?:===|!==|==|!=)|role\s*(?:===|==)\s*["']/i;
 const EXPORT_ROUTE_FN_RE = /^\s*export\s+(?:async\s+)?function\s+(?:GET|POST|PUT|PATCH|DELETE)\b/;
 /** Location for admin_route_no_role_check: the line of the first exported route
- * handler function, per ledger item 13c, so the finding points at the handler
+ * handler function, so the finding points at the handler
  * instead of always :1. */
 function firstExportedRouteFnLine(text) {
     const lines = text.split("\n");
@@ -192,7 +192,7 @@ function checkRouteWithoutAuth(relPath, routePath, text, matchers) {
 }
 // A strict admin/role gate is a pattern that does NOT count as a generic auth signal here.
 const OPERATOR_GATE_RE = /requireAdmin|assertAdmin|checkAdmin|isAdmin\s*\(|is_admin\s*\(/;
-// (ledger item 13d) requireRole('editor') is not an operator gate: only requireRole(...)
+// requireRole('editor') is not an operator gate: only requireRole(...)
 // whose argument names an operator-shaped role counts.
 const REQUIRE_ROLE_CALL_RE = /requireRole\s*\(\s*["'`]([^"'`]+)["'`]/g;
 const OPERATOR_ROLE_NAME_RE = /admin|owner|operator|superuser|staff/i;

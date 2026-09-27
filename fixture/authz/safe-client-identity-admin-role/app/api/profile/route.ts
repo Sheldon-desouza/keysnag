@@ -1,4 +1,4 @@
-// Regression fixture (LEDGER item 13d): requireRole('admin') IS an operator gate
+// Regression fixture: requireRole('admin') IS an operator gate
 // (its argument matches admin/owner/operator/superuser/staff), so an operator
 // acting on another user's row by an explicit id must NOT fire
 // authz.client_supplied_identity.

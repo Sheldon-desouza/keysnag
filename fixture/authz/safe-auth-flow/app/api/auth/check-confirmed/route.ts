@@ -1,4 +1,4 @@
-// Regression fixture (LEDGER item 11, authz.ts bullet I): an auth-flow route,
+// Regression fixture: an auth-flow route,
 // public by design and rate-limited elsewhere, using a service client with no
 // session check. /api/auth/ is skipped entirely, so this must trip no finding.
 import { NextResponse } from "next/server";

@@ -1,4 +1,4 @@
-// Regression fixture (LEDGER item 13d): requireRole('editor') is not an operator
+// Regression fixture: requireRole('editor') is not an operator
 // gate (only admin/owner/operator/superuser/staff roles are). Reading userId from
 // the request body and filtering a query by it MUST still fire
 // authz.client_supplied_identity.

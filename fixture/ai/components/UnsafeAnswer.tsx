@@ -1,6 +1,6 @@
 // Fixture: LLM output rendered as HTML with no sanitiser. Trips ai.unsafe_output_render.
 // Calls the LLM (messages.create) in this same file, satisfying the rule's
-// same-file LLM-call requirement (LEDGER item 11, ai-endpoints.ts bullet H).
+// same-file LLM-call requirement.
 import { marked } from "marked";
 import Anthropic from "@anthropic-ai/sdk";
 

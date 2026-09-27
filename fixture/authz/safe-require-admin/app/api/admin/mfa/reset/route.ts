@@ -1,4 +1,4 @@
-// Regression fixture (LEDGER item 11, authz.ts bullet I): a real admin route that
+// Regression fixture: a real admin route that
 // imports and calls requireAdmin() before writing. Must NOT trip any authz finding:
 // requireAdmin is an auth signal (route_without_auth) and a role-check signal
 // (admin_route_no_role_check).

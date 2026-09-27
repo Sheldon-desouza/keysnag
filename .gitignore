@@ -7,4 +7,6 @@ node_modules/
 *.report.md
 *.report.json
 .DS_Store
-site/.vercel
+
+# private-terms list for the leaks check
+.keysnag-private

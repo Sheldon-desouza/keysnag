@@ -1,4 +1,4 @@
-// Regression fixture (LEDGER item 13, backdoor.ts bullet b): typeof-guarded input
+// Regression fixture: typeof-guarded input
 // validation and an empty-string not-set check are not hardcoded bypasses. Must
 // NOT fire backdoor.literal_bypass.
 export function validateApiKey(apiKey: unknown) {

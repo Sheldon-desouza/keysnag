@@ -44,7 +44,7 @@ test("finds a hardcoded password literal bypass as critical", async () => {
   assert.equal(hit?.severity, "critical");
 });
 
-test("LEDGER 13a: the raw hardcoded password never appears in any finding field, or in the rendered markdown report", async () => {
+test("the raw hardcoded password never appears in any finding field, or in the rendered markdown report", async () => {
   const RAW_PASSWORD = "letmein123"; // the literal seeded in fixture/backdoor/literal_bypass.ts
   const findings = await runBackdoor();
   const hit = findings.find((f) => f.id === "backdoor.literal_bypass" && f.location?.includes("literal_bypass.ts"));

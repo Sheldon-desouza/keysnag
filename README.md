@@ -4,7 +4,7 @@
 
 <p align="center">
   <a href="LICENSE"><img alt="MIT licence" src="https://img.shields.io/badge/licence-MIT-a3e635?style=flat-square"></a>
-  <img alt="12 security checks" src="https://img.shields.io/badge/checks-12-22d3ee?style=flat-square">
+  <img alt="13 security checks" src="https://img.shields.io/badge/checks-13-22d3ee?style=flat-square">
   <img alt="Runs offline" src="https://img.shields.io/badge/runs-offline-0ea5e9?style=flat-square">
   <img alt="Node 22" src="https://img.shields.io/badge/node-22%2B-3c873a?style=flat-square">
   <img alt="Works with Claude Code, Cursor, Codex, Lovable, Bolt" src="https://img.shields.io/badge/works%20with-Claude%20Code%20%C2%B7%20Cursor%20%C2%B7%20Codex%20%C2%B7%20Lovable%20%C2%B7%20Bolt-f472b6?style=flat-square">
@@ -48,7 +48,7 @@ Every one of those is a known, catchable defect class. keysnag catches them befo
 ## How it works
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/Sheldon-desouza/keysnag/main/docs/assets/how-it-works.svg" alt="How keysnag works: your agent writes code, you push, keysnag runs 12 checks, a critical finding blocks the push and is fed back to the agent to fix, clean code reaches main." width="100%">
+  <img src="https://raw.githubusercontent.com/Sheldon-desouza/keysnag/main/docs/assets/how-it-works.svg" alt="How keysnag works: your agent writes code, you push, keysnag runs its checks, a critical finding blocks the push and is fed back to the agent to fix, clean code reaches main." width="100%">
 </p>
 
 1. You (or your agent) run `git push`.
@@ -88,10 +88,10 @@ Any check whose inputs are missing is skipped and the report tells you exactly w
 ## What it checks
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/Sheldon-desouza/keysnag/main/docs/assets/checks.svg" alt="The 12 keysnag checks at a glance: secrets, config, authz, injection, payments, backdoor, ai-endpoints, deps, urlprobe, rls, storage, twoaccount." width="100%">
+  <img src="https://raw.githubusercontent.com/Sheldon-desouza/keysnag/main/docs/assets/checks.svg" alt="The core keysnag security checks at a glance: secrets, config, authz, injection, payments, backdoor, ai-endpoints, deps, urlprobe, rls, storage, twoaccount." width="100%">
 </p>
 
-12 checks, grouped by what they need. "Blocks a push?" reflects the default gate (`--fail-on critical`): only critical findings stop a push; everything else is reported and left for you.
+13 checks, grouped by what they need. "Blocks a push?" reflects the default gate (`--fail-on critical`): only critical findings stop a push; everything else is reported and left for you.
 
 ### Repo / static (no inputs beyond the code itself)
 
@@ -105,6 +105,18 @@ Any check whose inputs are missing is skipped and the report tells you exactly w
 | `backdoor` | Obfuscated base64-eval chains, hardcoded password bypasses, auth-skip flags, `process.env` dumped to a response, calls to tunnels, paste sites and bot APIs, leftover prompt-injection text | yes (obfuscated eval, literal bypass) |
 | `ai-endpoints` | LLM calls made from the browser, AI routes with no auth or no spend bound, prompts built from raw input, unsanitised LLM output rendered as HTML | warn |
 | `deps` | Known CVEs for your exact lockfile versions with the upgrade that fixes them, unpinned deps, install-time scripts, lockfile drift | yes (critical CVE with a fix) |
+
+### Before a repo goes public
+
+| Check | What it catches | Inputs | Blocks a push? |
+|---|---|---|---|
+| `leaks` | Things that are not secrets but should not be public: your local home-directory paths, names you mark as private (a client, an employer, an internal project), committed scaffolding such as `.vercel/` or agent notes, and those private names in commit messages and old file history | optional private-terms list | no (run with `--fail-on high` before flipping a repo public) |
+
+List private names in a gitignored `.keysnag-private` file, one per line, or in `KEYSNAG_PRIVATE_TERMS` as a comma-separated list. Never put them in `keysnag.config.json`, because that file is usually committed and the list would leak itself. Then run:
+
+```bash
+npx keysnag scan --checks leaks --fail-on high
+```
 
 ### Live site
 
@@ -199,8 +211,8 @@ Add an `allow` array to `keysnag.config.json`, or use the helper:
 
 ```bash
 keysnag allow authz.route_without_auth src/app/api/public/contact/route.ts \
-  --reason "Public, unauthenticated tool by design." \
-  --bound "Per-IP limit of 3 per 24h (rateLimit -> 429)."
+  --reason "Public contact form, unauthenticated by design." \
+  --bound "Per-IP rate limit of 5 per hour, returns 429."
 ```
 
 - `id` is a concrete finding id (`secret.stripe_key`) or a dotted prefix (`secret.`).

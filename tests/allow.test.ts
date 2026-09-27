@@ -239,7 +239,7 @@ test("the `allow` CLI helper refuses (exits non-zero, no write) when --reason or
   }
 });
 
-test("catch-all globs like **/* and */** are rejected with a prefix-only id (verify cycle 2)", async () => {
+test("catch-all globs like **/* and */** are rejected with a prefix-only id", async () => {
   const { validateAllowList } = await import("../src/allow.js");
   for (const location of ["**/*", "**/**", "*/**", "./**", " ** "]) {
     assert.throws(

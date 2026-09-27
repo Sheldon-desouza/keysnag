@@ -1,7 +1,7 @@
 {
   "name": "keysnag",
-  "version": "0.1.1",
-  "description": "Pre-push security gate for AI-built Next.js + Supabase apps: 12 checks covering leaked secrets, misconfiguration, broken access control, injection, payments/webhooks, backdoors, AI-endpoint abuse, dependency CVEs, storage/RLS, an exposed URL probe, and cross-account access. Auto-runs on git commit/push in Claude Code, or from the CLI, a git hook, or any MCP client. Nothing leaves your machine except an optional OSV.dev CVE lookup.",
+  "version": "0.2.0",
+  "description": "Pre-push security gate for AI-built Next.js + Supabase apps: 13 checks covering leaked secrets, misconfiguration, broken access control, injection, payments/webhooks, backdoors, AI-endpoint abuse, dependency CVEs, storage/RLS, an exposed URL probe, cross-account access, and a pre-publish leak check for private names, local paths and commit history. Auto-runs on git commit/push in Claude Code, or from the CLI, a git hook, or any MCP client. Nothing leaves your machine except an optional OSV.dev CVE lookup.",
   "author": {
     "name": "Sheldon de Souza",
     "url": "https://github.com/Sheldon-desouza"

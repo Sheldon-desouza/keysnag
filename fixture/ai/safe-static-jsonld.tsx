@@ -1,4 +1,4 @@
-// Regression fixture (LEDGER item 11, ai-endpoints.ts bullet H): a static page
+// Regression fixture: a static page
 // rendering JSON-LD structured data, no LLM anywhere in the file. Must NOT trip
 // ai.unsafe_output_render: __html: JSON.stringify(...) is the standard Next.js
 // JSON-LD idiom, not an LLM output render.

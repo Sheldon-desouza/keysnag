@@ -91,7 +91,7 @@ test("the safe fixture trips no injection rule", async () => {
   assert.equal(safeHits.length, 0, `expected no findings in safe.ts, got: ${JSON.stringify(safeHits)}`);
 });
 
-// Calibration fixtures (ledger item 11, injection.ts bullet): each of these
+// Calibration fixtures: each of these
 // reproduces a real false positive found on a real-repo dogfood and must not
 // fire any injection.* rule.
 const SAFE_FILES = [
@@ -101,7 +101,7 @@ const SAFE_FILES = [
   "safe-innerhtml-literal.ts", // el.innerHTML = '<svg width="28">...</svg>' string literal
   "safe-playwright-eval.ts", // page.$eval/$$eval/.evaluate(, not the eval() builtin
   "docs-example.md", // markdown containing eval(req.body); markdown is skipped entirely
-  "src/components/link-preview-widget.tsx", // LEDGER 13e: /components/ path, fetch(userUrl) is not SSRF
+  "src/components/link-preview-widget.tsx", // /components/ path, fetch(userUrl) is not SSRF
 ];
 
 test("calibration fixtures trip no injection rule", async () => {

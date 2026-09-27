@@ -14,11 +14,12 @@ workflow below is the same one Claude follows when woken up by that hook.
    a URL looks like `--url`).
 2. Read the generated `keysnag.report.md` in the project root. Do not guess at findings;
    read the file.
-3. Summarize the report for the user: how many of the 12 checks ran, how many were
+3. Summarize the report for the user: how many of the 13 checks ran, how many were
    skipped, and the count of findings by severity (critical first).
 4. If any checks were skipped, tell the user exactly which `.env` var(s) unlock each one:
-   - `secrets`, `config`, `authz`, `injection`, `payments`, `backdoor`, `ai-endpoints` run
-     with no inputs beyond the repo itself
+   - `secrets`, `config`, `authz`, `injection`, `payments`, `backdoor`, `ai-endpoints`, `leaks` run
+     with no inputs beyond the repo itself (`leaks` also reads a gitignored `.keysnag-private`
+     list of names that must not go public)
    - `deps` needs a lockfile (`package-lock.json`/`pnpm-lock.yaml`/`yarn.lock`)
    - `urlprobe` needs `KEYSNAG_SITE_URL`
    - `rls` needs `KEYSNAG_PG_URL` (a read-only Postgres connection string)

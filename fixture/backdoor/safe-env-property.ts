@@ -1,5 +1,5 @@
-// Fixture: a single named env property read passed into JSON.stringify, the real
-// pattern from a background job. Reading one key, not the whole object, is not a
+// Fixture: a single named env property read passed into JSON.stringify, a common
+// background-job pattern. Reading one key, not the whole object, is not a
 // dump. Must produce zero findings from backdoor.env_dump.
 export async function scheduleContinuation(sessionId: string, continueUrl: string) {
   return fetch(continueUrl, {

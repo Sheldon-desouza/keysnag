@@ -1,11 +1,11 @@
 ---
 name: keysnag
-description: No-telemetry pre-push security gate for AI-built Next.js + Supabase apps, 12 checks covering leaked secrets, misconfiguration, broken access control, injection, payments/webhooks, backdoors, AI-endpoint abuse, dependency CVEs, storage/RLS, exposed URLs, and cross-account data leaks. Use when the user asks things like "is my app secure", "check before launch", "audit my supabase app", "did the AI leak my keys", or before shipping a vibe-coded project to real users.
+description: No-telemetry pre-push security gate for AI-built Next.js + Supabase apps, 13 checks covering leaked secrets, misconfiguration, broken access control, injection, payments/webhooks, backdoors, AI-endpoint abuse, dependency CVEs, storage/RLS, exposed URLs, and cross-account data leaks. Use when the user asks things like "is my app secure", "check before launch", "audit my supabase app", "did the AI leak my keys", or before shipping a vibe-coded project to real users.
 ---
 
 # keysnag
 
-keysnag runs 12 checks against a project and nothing else: it never phones
+keysnag runs 13 checks against a project and nothing else: it never phones
 home, and the only network calls it makes are to a site URL, Supabase URL, or
 Postgres URL the user supplies themselves, plus one opt-out exception: `deps`
 looks up known CVEs via OSV.dev unless `--no-osv` / `KEYSNAG_ALLOW_OSV=false`
@@ -35,7 +35,7 @@ Run it when the user:
 - Slash command: `/security-check` runs the scan and walks the user through
   fixes interactively (see `commands/security-check.md`).
 
-## The 12 checks
+## The 13 checks
 
 Repo-static (no inputs beyond the code itself, always run):
 - **secrets** — API keys, service_role JWTs, and other credentials hardcoded
@@ -56,6 +56,12 @@ Repo-static (no inputs beyond the code itself, always run):
   spend bound, raw-input prompts, unsanitised LLM output rendered as HTML.
 - **deps** — known CVEs (via OSV.dev) in your lockfile-pinned versions,
   unpinned deps, install scripts, lockfile drift. Needs a lockfile.
+
+- **leaks** — for repos about to go public: local home-directory paths,
+  private names from a gitignored `.keysnag-private` (or
+  `KEYSNAG_PRIVATE_TERMS`), committed scaffolding like `.vercel/` or agent
+  notes, and private names in commit messages and history. See the
+  `prepublish` skill for the full pre-public workflow.
 
 Live site / database / accounts:
 - **urlprobe** — hits the live site and looks for exposed debug routes,

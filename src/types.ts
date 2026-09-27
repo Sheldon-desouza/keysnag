@@ -36,6 +36,8 @@ export interface CheckContext {
   changedFiles?: string[];
   /** set false to forbid the one third-party call keysnag can make (OSV.dev CVE lookup) */
   allowOsv?: boolean;
+  /** names that must not appear in a public repo (from KEYSNAG_PRIVATE_TERMS; the leaks check also reads a gitignored .keysnag-private) */
+  privateTerms?: string[];
   log: (msg: string) => void;
 }
 

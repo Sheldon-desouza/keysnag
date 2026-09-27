@@ -1,6 +1,6 @@
 {
   "name": "keysnag",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Cybersecurity for AI founders and vibe coders. A pre-push security gate for apps built with Claude Code, Cursor, Codex, Lovable and Bolt: 12 offline checks for leaked keys, Supabase RLS, cross-account (IDOR) access, injection, Stripe webhooks, known CVEs and backdoors. Blocks the push on critical.",
   "type": "module",
   "bin": {

@@ -72,8 +72,16 @@ export function loadContext(overrides = {}) {
         tokenA: overrides.tokenA ?? envOrDotEnv("KEYSNAG_TOKEN_A") ?? config.tokenA,
         tokenB: overrides.tokenB ?? envOrDotEnv("KEYSNAG_TOKEN_B") ?? config.tokenB,
         allowOsv: overrides.allowOsv ?? parseAllowOsv(envOrDotEnv("KEYSNAG_ALLOW_OSV")),
+        privateTerms: parseList(envOrDotEnv("KEYSNAG_PRIVATE_TERMS")),
         log: overrides.log ?? ((msg) => console.error(msg)),
     };
+}
+/** Comma-separated list, trimmed, empties dropped. */
+function parseList(value) {
+    if (!value)
+        return undefined;
+    const out = value.split(",").map((s) => s.trim()).filter(Boolean);
+    return out.length ? out : undefined;
 }
 /** KEYSNAG_ALLOW_OSV="false" disables the one third-party call (OSV.dev). Anything else, or unset, allows it. */
 function parseAllowOsv(value) {

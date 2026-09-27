@@ -7,3 +7,4 @@ node_modules/
 *.report.md
 *.report.json
 .DS_Store
+site/.vercel

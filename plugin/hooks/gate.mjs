@@ -27,7 +27,7 @@ function resolveCli() {
     return { cmd: "node", args: [localCli] };
   }
   // keysnag is on npm, so a plugin installed on its own (no repo dist/ beside it) fetches it.
-  return { cmd: "npx", args: ["-y", "keysnag@0.1.0"] };
+  return { cmd: "npx", args: ["-y", "keysnag@0.2.0"] };
 }
 
 function runScan() {

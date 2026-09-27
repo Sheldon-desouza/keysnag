@@ -4,7 +4,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { fileURLToPath } from "node:url";
-import { dirname, resolve } from "node:path";
+import { dirname, resolve, join } from "node:path";
+import { mkdtempSync, cpSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import depsCheck, {
   createDepsCheck,
   parsePackageLock,
@@ -38,7 +40,12 @@ test("finds the unpinned 'latest' dependency", async () => {
 });
 
 test("finds deps.install_script for a package with a postinstall script in node_modules", async () => {
-  const result = await depsCheck.run(makeCtx());
+  // node_modules is gitignored, so build the installed package in a temp copy of the fixture.
+  const dir = mkdtempSync(join(tmpdir(), "keysnag-deps-"));
+  cpSync(fixtureDir, dir, { recursive: true });
+  mkdirSync(join(dir, "node_modules", "shady-pkg"), { recursive: true });
+  writeFileSync(join(dir, "node_modules", "shady-pkg", "package.json"), JSON.stringify({"name": "shady-pkg", "version": "1.0.0", "scripts": {"postinstall": "node ./run.js"}}, null, 2));
+  const result = await depsCheck.run(makeCtx({ repoDir: dir })).finally(() => rmSync(dir, { recursive: true, force: true }));
   const hit = result.findings.find((f) => f.id === "deps.install_script" && f.title.includes("shady-pkg"));
   assert.ok(hit, "expected a deps.install_script finding for shady-pkg");
   assert.equal(hit?.severity, "medium");

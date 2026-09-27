@@ -15,6 +15,7 @@
 <p align="center"><strong>keysnag</strong> is a free, open-source security gate that runs <em>before</em> your code reaches <code>main</code> and your live site. It catches the exact mistakes AI coding agents make (leaked keys, missing Supabase RLS, one user reading another user's data, unverified Stripe webhooks, known CVEs, backdoors) and blocks the push if any of them is critical. Twelve checks, under ten seconds, nothing leaves your machine.</p>
 
 <p align="center">
+  <a href="https://keysnag.dev">keysnag.dev</a> ·
   <a href="#install-in-60-seconds">Install in 60 seconds</a> ·
   <a href="#what-it-checks">What it checks</a> ·
   <a href="#why-you-can-trust-it">Why you can trust it</a> ·
